@@ -65,8 +65,10 @@ class Server:
             # This method should complete the following tasks
             # - determine if the message is a GET request
             line1 = msg[0].split(" ")
-            if line1[0] != "GET" or not (line1[1] in self.resources):
+            if not (line1[1] in self.resources):
                 return "HTTP/1.1 404 Not Found\r\n\r\n"
+            if line1[0] != "GET":
+                return 'HTTP/1.1 400 Bad Request\r\n\r\n'
 
             last_modified = datetime.strptime(self.resources[line1[1]]["last_modified"], "%a, %d %b %Y %H:%M:%S %Z")
             file_size = str(self.resources[line1[1]]["file_size"])
