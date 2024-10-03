@@ -1,0 +1,24 @@
+{
+    "school": {
+      "name": "Tech High School",
+      "location": "Tech City",
+      "departments": [
+        {
+          "name": "Computer Science",
+          "head": "Dr. Smith",
+          "courses": ["Introduction to Programming", "Data Structures", "Computer Networks"]
+        },
+        {
+          "name": "Mathematics",
+          "head": "Dr. Johnson",
+          "courses": ["Calculus I", "Calculus II", "Linear Algebra"]
+        },
+        {
+          "name": "Physics",
+          "head": "Dr. Reynolds",
+          "courses": ["Mechanics", "Electromagnetism", "Quantum Physics"]
+        }
+      ]
+    }
+  }
+  
