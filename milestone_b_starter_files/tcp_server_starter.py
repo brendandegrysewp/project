@@ -55,10 +55,36 @@ class Server:
         """
         ### Process a request for connection with the server via 3-way handshake
         ## 1. Receive SYN
+        SYN = None
+        try:
+            SYN = Datagram.from_bytes(self.server_socket.recv(self.frame_size))
+            if "SYN" not in SYN.data :
+                print("Didn't receive SYN")
+                print(SYN)
+                return False
+        except Exception as e:
+            print(e)
+            return False
         ## 2. Send SYN/ACK       
+        try:
+            request = f"SYNACK\r\n\r\n"
+            print(f"Sending request: {request}")
+            new_datagram = Datagram(source_ip=self.server_ip, dest_ip=SYN.ip_saddr, source_port = self.server_port, dest_port = SYN.source_port, seq_num = self.seq_num, ack_num = self.ack_num, flags=24, window_size = 10, data=request)
+            new_datagram_bytes = new_datagram.to_bytes()
+            self.server_socket.sendto(new_datagram_bytes, (SYN.ip_saddr, SYN.source_port))
+        except Exception as e:
+            print(e)
+            return False
         ## 3. Receive ACK
-
-        pass
+        ack = None
+        try:
+            ack = Datagram.from_bytes(self.server_socket.recv(self.frame_size))
+            if "ACK" not in ack.data:
+                return False
+        except Exception as e:
+            print(e)
+            return False
+        return True
 
     def receive_request_segments(self):
         """

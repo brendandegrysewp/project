@@ -65,10 +65,35 @@ class Client:
         """
         ### Establish a connection with the server via 3-way handshake
         ## 1. Send SYN 
+        try:
+            request = f"SYN\r\n\r\n"
+            print(f"Sending request: {request}")
+            new_datagram = Datagram(source_ip=self.client_ip, dest_ip=self.server_ip, source_port = self.client_port, dest_port = self.server_port, seq_num = self.seq_num, ack_num = self.ack_num, flags=24, window_size = 10, data=request)
+            new_datagram_bytes = new_datagram.to_bytes()
+            self.client_socket.sendto(new_datagram_bytes, (self.server_ip, self.server_port))
+        except:
+            return False
         ## 2. Recieve SYN/ACK
+        ack = None
+        try:
+            ack = Datagram.from_bytes(self.client_socket.recv(self.frame_size))
+            # ack = self.client_socket.recv(self.frame_size)
+            if "SYNA" not in ack.data:#temp fix
+                print((ack.data))
+                return False
+        except Exception as e:
+            print(e)
+            return False
         ## 3. Send ACK
-        
-        pass
+        try:
+            request = f"ACK\r\n\r\n"
+            print(f"Sending request: {request}")
+            new_datagram = Datagram(source_ip=self.client_ip, dest_ip=self.server_ip, source_port = self.client_port, dest_port = self.server_port, seq_num = self.seq_num, ack_num = self.ack_num, flags=24, window_size = 10, data=request)
+            new_datagram_bytes = new_datagram.to_bytes()
+            self.client_socket.sendto(new_datagram_bytes, (self.server_ip, self.server_port))
+        except:
+            return False
+        return True
 
     def build_request(self, resource, timestamp=None):
         """
@@ -98,9 +123,46 @@ class Client:
         """
         
         ### Segment the request (segments no larger than frame_size)
+        res = []
+        split = len(request) // self.frame_size
+        if len(request) % self.frame_size > 0:
+            split += 1
+        for d in range(split):
+            res.append(request[(self.frame_size*d):(self.frame_size*(d+1))])
 
         ### Send the request segments using Go-Back-N (use Datagram class to encapsulate the segments)
         ## Start by sending all datagrams in the window          
+        for message in res:
+            for seq_num in range(self.window_size):
+                print(f"Sending message: {message}")
+                new_datagram = Datagram(source_ip=self.client_ip, dest_ip=self.server_ip, source_port = self.client_port, dest_port = self.server_port, seq_num = self.seq_num, ack_num = self.ack_num, flags=24, window_size = 10, data=message)
+                new_datagram_bytes = new_datagram.to_bytes()
+                sent_bytes = self.client_socket.sendto(new_datagram_bytes, (self.server_ip, self.server_port))
+                self.seq_num += 1
+                print(f"Sent {sent_bytes} bytes...\n")
+                if sent_bytes == 0:
+                    print("Houston we have an error! Aborting...")
+                    break
+                # listen for responses
+                ack = None
+                try:
+                    ack = self.client_socket.recv(self.frame_size).decode()
+                
+                except socket.timeout:
+                    print("Timed out!\n")
+                    """
+                    This is probably a great place to do something to determine
+                    if you should retransmit or not. There are multiple
+                    solutions to this, but the easiest is just to go back 
+                    to the top of your loop (nest it in a while loop that you break
+                    when you get an 'ACK'). Good luck!
+                    """
+
+                except Exception as e:
+                    print(e)
+                # this print statement confirms we can send and receive
+                print(ack)
+            self.base += self.window_size
         ## process the acknowledgements
         # If ack is good: increment base and transmit another packet
         # If ack is duplicate: ignore ack
