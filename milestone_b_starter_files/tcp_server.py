@@ -63,6 +63,7 @@ class Server:
                 print(SYN)
                 return False
             print(SYN.data)
+            self.ack_num = SYN.seq_num + 1
         except Exception as e:
             print(e)
             return False
@@ -74,7 +75,6 @@ class Server:
             new_datagram_bytes = new_datagram.to_bytes()
             self.server_socket.sendto(new_datagram_bytes, (SYN.ip_saddr, SYN.source_port))
             print("Sent SYN/ACK")
-            self.seq_num += 1
         except Exception as e:
             print(e)
             return False
@@ -85,7 +85,7 @@ class Server:
             if ack.flags != 16 or ack.seq_num != 1:
                 return False
             print(ack.data)
-            self.ack_num = 1
+            self.ack_num = ack.seq_num + 1
         except Exception as e:
             print(e)
             return False

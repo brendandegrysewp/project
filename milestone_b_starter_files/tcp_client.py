@@ -84,7 +84,7 @@ class Client:
             if ack.flags != 18:
                 print((ack.data))
                 return False
-            if ack.ack_num != self.seq_num:
+            if ack.ack_num != self.seq_num+1:
                 print("wrong ack")
                 return False
             self.seq_num += 1
