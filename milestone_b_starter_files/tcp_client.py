@@ -168,7 +168,7 @@ class Client:
                     to the top of your loop (nest it in a while loop that you break
                     when you get an 'ACK'). Good luck!
                     """
-                    break
+                    return
 
                 except Exception as e:
                     print(e)
