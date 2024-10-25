@@ -79,11 +79,15 @@ class Client:
         try:
             ack = Datagram.from_bytes(self.client_socket.recv(self.frame_size))
             self.window_size = ack.window_size
-            print(len(new_datagram_bytes))
+            # print(len(new_datagram_bytes))
             # ack = self.client_socket.recv(self.frame_size)
             if ack.flags != 18:
                 print((ack.data))
                 return False
+            if ack.ack_num != self.seq_num:
+                print("wrong ack")
+                return False
+            self.seq_num += 1
             print(ack.data)
         except Exception as e:
             print(e)
@@ -126,7 +130,7 @@ class Client:
         Args:
             request (str): The HTTP request to send.
         """
-        
+        return 
         ### Segment the request (segments no larger than frame_size)
         segments = []
         split = len(request) // self.frame_size

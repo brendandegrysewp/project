@@ -58,7 +58,7 @@ class Server:
         SYN = None
         try:
             SYN = Datagram.from_bytes(self.server_socket.recv(self.frame_size))
-            if SYN.flags != 2:
+            if SYN.flags != 2 or SYN.seq_num != 0:
                 print("Didn't receive SYN")
                 print(SYN)
                 return False
@@ -74,6 +74,7 @@ class Server:
             new_datagram_bytes = new_datagram.to_bytes()
             self.server_socket.sendto(new_datagram_bytes, (SYN.ip_saddr, SYN.source_port))
             print("Sent SYN/ACK")
+            self.seq_num += 1
         except Exception as e:
             print(e)
             return False
@@ -81,9 +82,10 @@ class Server:
         ack = None
         try:
             ack = Datagram.from_bytes(self.server_socket.recv(self.frame_size))
-            if ack.flags != 16:
+            if ack.flags != 16 or ack.seq_num != 1:
                 return False
             print(ack.data)
+            self.ack_num = 1
         except Exception as e:
             print(e)
             return False
