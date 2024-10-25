@@ -169,7 +169,7 @@ class Client:
                     to the top of your loop (nest it in a while loop that you break
                     when you get an 'ACK'). Good luck!
                     """
-                    self.close_socket()
+                    return
 
                 except Exception as e:
                     print(e)
