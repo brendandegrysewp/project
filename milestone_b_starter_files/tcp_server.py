@@ -73,8 +73,8 @@ class Server:
             print(f"Sending request: {request}")
             new_datagram = Datagram(source_ip=self.server_ip, dest_ip=SYN.ip_saddr, source_port = self.server_port, dest_port = SYN.source_port, seq_num = self.seq_num, ack_num = self.ack_num, flags=18, window_size = 10, data=request)
             new_datagram_bytes = new_datagram.to_bytes()
+            # print(Datagram.from_bytes(new_datagram_bytes).data)
             self.server_socket.sendto(new_datagram_bytes, (SYN.ip_saddr, SYN.source_port))
-            print("Sent SYN/ACK")
         except Exception as e:
             print(e)
             return False
@@ -84,7 +84,6 @@ class Server:
             ack = Datagram.from_bytes(self.server_socket.recv(self.frame_size))
             if ack.flags != 16 or ack.seq_num != 1:
                 return False
-            print(ack.data)
             self.ack_num = ack.seq_num + 1
         except Exception as e:
             print(e)
@@ -98,7 +97,6 @@ class Server:
         Returns:
             tuple: A tuple containing the request string, source port, and source IP.
         """
-        return
 
         ### Implement the Go-Back-N receiver functions and reassemble the request message from the received segments.
         ## Receive segments until end of message (use Datagram class to access header values)
@@ -109,16 +107,25 @@ class Server:
         while request[:-4] != '\r\n\r\n':
             try:
                 pkt = Datagram.from_bytes(self.server_socket.recv(self.frame_size))
-                if pkt.flags == 25:
-                    request += pkt.data
+                if pkt.dest_port != self.server_port:
                     break
-                if pkt.flags != 24:
+                if pkt.seq_num == self.ack_num:
+                    self.ack_num += 1
+                if pkt.flags != 24 and pkt.flags != 25:
                     print("Incorrect Packet Received")
-                    print(pkt)
                     return False
-                print("Received SYN")
+                print("Received ", request)
+
+                #send back ack
+                sendrequest = f"ACK\r\n\r\n"
+                print(f"Sending request: ACK {self.ack_num}")
+                new_datagram = Datagram(source_ip=self.server_ip, dest_ip=pkt.ip_saddr, source_port = self.server_port, dest_port = pkt.source_port, seq_num = self.seq_num, ack_num = self.ack_num, flags=16, window_size = 10, data=sendrequest)
+                new_datagram_bytes = new_datagram.to_bytes()
+                self.server_socket.sendto(new_datagram_bytes, (pkt.ip_saddr, pkt.source_port))
                 request += pkt.data
-                print(request)
+                if pkt.flags == 25:
+                    break
+
             except Exception as e:
                 print(e)
                 return False
