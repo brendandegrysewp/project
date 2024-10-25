@@ -78,11 +78,12 @@ class Client:
         ack = None
         try:
             ack = Datagram.from_bytes(self.client_socket.recv(self.frame_size))
+            print(len(new_datagram_bytes))
             # ack = self.client_socket.recv(self.frame_size)
             if ack.flags != 18:
                 print((ack.data))
                 return False
-            print("Received SYN/ACK")
+            print(ack.data)
         except Exception as e:
             print(e)
             return False
@@ -144,6 +145,7 @@ class Client:
                 sent_bytes = self.client_socket.sendto(new_datagram_bytes, (self.server_ip, self.server_port))
                 print(f"Sent {sent_bytes} bytes...\n")
                 self.seq_num += 1
+                print(Datagram.from_bytes(new_datagram_bytes).data)
                 if sent_bytes == 0:
                     print("Houston we have an error! Aborting...")
                     break
@@ -166,6 +168,7 @@ class Client:
                     to the top of your loop (nest it in a while loop that you break
                     when you get an 'ACK'). Good luck!
                     """
+                    break
 
                 except Exception as e:
                     print(e)

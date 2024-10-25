@@ -53,6 +53,7 @@ class Server:
         Returns:
             bool: True if the handshake was successful, False otherwise.
         """
+        break
         ### Process a request for connection with the server via 3-way handshake
         ## 1. Receive SYN
         SYN = None
@@ -62,7 +63,7 @@ class Server:
                 print("Didn't receive SYN")
                 print(SYN)
                 return False
-            print("Received SYN")
+            print(SYN.data)
         except Exception as e:
             print(e)
             return False
@@ -83,7 +84,7 @@ class Server:
             ack = Datagram.from_bytes(self.server_socket.recv(self.frame_size))
             if ack.flags != 16:
                 return False
-            print("Received ACK")
+            print(ack.data)
         except Exception as e:
             print(e)
             return False
@@ -115,6 +116,7 @@ class Server:
                     return False
                 print("Received SYN")
                 request += pkt.data
+                print(request)
             except Exception as e:
                 print(e)
                 return False
