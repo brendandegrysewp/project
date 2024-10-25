@@ -157,7 +157,7 @@ class Client:
                     print("Houston we have an error! Aborting...")
                     break
             
-            while self.base < self.seq_num-1:
+            while self.base < self.seq_num:
                 # listen for responses
                 try:
                     print(self.base)

@@ -56,18 +56,21 @@ class Server:
         ### Process a request for connection with the server via 3-way handshake
         ## 1. Receive SYN
         SYN = None
-        try:
-            SYN = Datagram.from_bytes(self.server_socket.recv(self.frame_size))
-            if SYN.flags != 2 or SYN.seq_num != 0:
-                print("Didn't receive SYN")
-                print(SYN)
-                return False
-            print(SYN.data)
-            self.ack_num = SYN.seq_num + 1
-        except Exception as e:
-            print(e)
-            return False
+        while SYN == None:
+            try:
+                SYN = Datagram.from_bytes(self.server_socket.recv(self.frame_size))
+                if SYN.flags != 2 or SYN.seq_num != 0:
+                    print("Didn't receive SYN")
+                    print(SYN)
+                    return False
+                print(SYN.data)
+                self.window_size = SYN.window_size
+                self.ack_num += 1
+            except Exception as e:
+                print(e)
+                SYN = None
         ## 2. Send SYN/ACK       
+        self.server_socket.settimeout(self.timeout)
         try:
             request = f"SYNACK\r\n\r\n"
             print(f"Sending request: {request}")
@@ -75,6 +78,7 @@ class Server:
             new_datagram_bytes = new_datagram.to_bytes()
             # print(Datagram.from_bytes(new_datagram_bytes).data)
             self.server_socket.sendto(new_datagram_bytes, (SYN.ip_saddr, SYN.source_port))
+            self.seq_num += 1
         except Exception as e:
             print(e)
             return False
@@ -87,6 +91,7 @@ class Server:
             self.ack_num = ack.seq_num + 1
         except Exception as e:
             print(e)
+            self.reset_connection()
             return False
         return True
 
