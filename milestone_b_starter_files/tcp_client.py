@@ -78,6 +78,7 @@ class Client:
         ack = None
         try:
             ack = Datagram.from_bytes(self.client_socket.recv(self.frame_size))
+            self.window_size = ack.window_size
             print(len(new_datagram_bytes))
             # ack = self.client_socket.recv(self.frame_size)
             if ack.flags != 18:
@@ -168,7 +169,7 @@ class Client:
                     to the top of your loop (nest it in a while loop that you break
                     when you get an 'ACK'). Good luck!
                     """
-                    return
+                    self.close_socket()
 
                 except Exception as e:
                     print(e)
