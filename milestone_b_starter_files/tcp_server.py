@@ -53,7 +53,6 @@ class Server:
         Returns:
             bool: True if the handshake was successful, False otherwise.
         """
-        break
         ### Process a request for connection with the server via 3-way handshake
         ## 1. Receive SYN
         SYN = None
@@ -97,6 +96,7 @@ class Server:
         Returns:
             tuple: A tuple containing the request string, source port, and source IP.
         """
+        return
 
         ### Implement the Go-Back-N receiver functions and reassemble the request message from the received segments.
         ## Receive segments until end of message (use Datagram class to access header values)
