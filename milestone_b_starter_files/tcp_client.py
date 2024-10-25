@@ -88,6 +88,7 @@ class Client:
                 print("wrong ack")
                 return False
             self.seq_num += 1
+            self.ack_num += 1
             print(ack.data)
         except Exception as e:
             print(e)
