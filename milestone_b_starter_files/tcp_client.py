@@ -138,7 +138,6 @@ class Client:
             split += 1
         for d in range(split):
             segments.append(request[((self.frame_size-60)*d):((self.frame_size-60)*(d+1))])
-        print(segments)
 
         ### Send the request segments using Go-Back-N (use Datagram class to encapsulate the segments)
         ## Start by sending all datagrams in the window          
@@ -190,8 +189,6 @@ class Client:
             # If ack is duplicate: ignore ack
         # If timeout: adjust seq_num; retransmit segments in window from base
 
-        print(len(request))
-        return
 
     def process_response_segments(self):
         """
@@ -205,8 +202,36 @@ class Client:
         # If the seg_num of each segment matches the previous ack_num, send an acknowledgement.
         # Otherwise, send a duplicate acknowledgement.
         ### Return the full response
+        print("processing response")
+        request = ''
+        while request[:-4] != '\r\n\r\n':
+            try:
+                pkt = Datagram.from_bytes(self.client_socket.recv(self.frame_size))
+                if pkt.dest_port != self.client_port:
+                    break
+                if pkt.seq_num == self.ack_num:
+                    self.ack_num += 1
+                if pkt.flags != 24 and pkt.flags != 25:
+                    print("Incorrect Packet Received")
+                    return False
+                # print("Received ", request)
 
-        pass
+                #send back ack
+                sendrequest = f"ACK\r\n\r\n"
+                print(f"Sending request: ACK {self.ack_num}")
+                new_datagram = Datagram(source_ip=self.client_ip, dest_ip=self.server_ip, source_port = self.client_port, dest_port = self.client_port, seq_num = self.seq_num, ack_num = self.ack_num, flags=16, window_size = 10, data=sendrequest)
+                new_datagram_bytes = new_datagram.to_bytes()
+                self.client_socket.sendto(new_datagram_bytes, (self.server_ip, self.server_port))
+                request += pkt.data
+                if pkt.flags == 25:
+                    break
+
+            except Exception as e:
+                print(e)
+                return False
+
+        print(request)
+        return request
 
     def close_socket(self):
         """

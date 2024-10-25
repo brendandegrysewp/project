@@ -59,6 +59,8 @@ class Server:
         while SYN == None:
             try:
                 SYN = Datagram.from_bytes(self.server_socket.recv(self.frame_size))
+                self.destip = SYN.ip_saddr
+                self.destport = SYN.source_port
                 if SYN.flags != 2 or SYN.seq_num != 0:
                     print("Didn't receive SYN")
                     print(SYN)
@@ -186,7 +188,56 @@ class Server:
                 flags = 24
 
         ### Segment the response (segments no larger than frame_size)
+        segments = []
+        split = len(data) // (self.frame_size-60)
+        if len(data) % (self.frame_size-60) > 0:
+            split += 1
+        for d in range(split):
+            segments.append(data[((self.frame_size-60)*d):((self.frame_size-60)*(d+1))])
 
+        self.base = self.seq_num
+        offset = self.base-0
+        while self.base-offset < len(segments):
+            # print("base-offset length: ", self.base-offset, len(segments))
+            #self.base = self.seq_num
+            for segment in segments[self.base-offset:self.base-offset+self.window_size-offset]:
+                # print(segment)
+                # request = Datagram.from_bytes(segment)
+                new_datagram = Datagram(source_ip=self.server_ip, dest_ip=dest_ip, source_port = self.server_port, dest_port = dest_port, seq_num = self.seq_num, ack_num = self.ack_num, flags=24, window_size = self.window_size, data=segment)
+                if self.base-offset == len(segments)-1:
+                    new_datagram.flags = 25
+                #print(f"Sending message: {new_datagram.data}")
+                new_datagram_bytes = new_datagram.to_bytes()
+                sent_bytes = self.server_socket.sendto(new_datagram_bytes, (dest_ip, dest_port))
+                #print(f"Sent {sent_bytes} bytes...\n")
+                self.seq_num += 1
+                if sent_bytes == 0:
+                    print("Houston we have an error! Aborting...")
+                    break
+            
+                while self.base < self.seq_num:
+                    # listen for responses
+                    try:
+                        # print(self.base)
+                        ack = Datagram.from_bytes(self.server_socket.recv(self.frame_size))
+                        # print(ack.ack_num)
+                        if ack.ack_num == self.base+1:
+                            # print("correct")
+                            self.base += 1
+                        else:
+                            print("wrong")
+                            break
+                    
+                    except Exception as e:
+                        print("Timed out!\n")
+                        """
+                        This is probably a great place to do something to determine
+                        if you should retransmit or not. There are multiple
+                        solutions to this, but the easiest is just to go back 
+                        to the top of your loop (nest it in a while loop that you break
+                        when you get an 'ACK'). Good luck!
+                        """
+                        return
         ### Send the response segments using Go-Back-N (use Datagram class to encapsulate the segments)
         ## Start by sending all datagrams in the window          
         ## process the acknowledgements
@@ -199,6 +250,9 @@ class Server:
         Resets the connection parameters for the server.
         """
         ### Re-initialize the appropriate settings to control transport layer services
+        self.base = 0
+        self.seq_num = 0
+        self.ack_num = 0
         pass
 
     def close_server(self):
