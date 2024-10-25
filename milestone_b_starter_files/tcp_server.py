@@ -58,10 +58,11 @@ class Server:
         SYN = None
         try:
             SYN = Datagram.from_bytes(self.server_socket.recv(self.frame_size))
-            if "SYN" not in SYN.data :
+            if SYN.flags != 2:
                 print("Didn't receive SYN")
                 print(SYN)
                 return False
+            print("Received SYN")
         except Exception as e:
             print(e)
             return False
@@ -69,9 +70,10 @@ class Server:
         try:
             request = f"SYNACK\r\n\r\n"
             print(f"Sending request: {request}")
-            new_datagram = Datagram(source_ip=self.server_ip, dest_ip=SYN.ip_saddr, source_port = self.server_port, dest_port = SYN.source_port, seq_num = self.seq_num, ack_num = self.ack_num, flags=24, window_size = 10, data=request)
+            new_datagram = Datagram(source_ip=self.server_ip, dest_ip=SYN.ip_saddr, source_port = self.server_port, dest_port = SYN.source_port, seq_num = self.seq_num, ack_num = self.ack_num, flags=18, window_size = 10, data=request)
             new_datagram_bytes = new_datagram.to_bytes()
             self.server_socket.sendto(new_datagram_bytes, (SYN.ip_saddr, SYN.source_port))
+            print("Sent SYN/ACK")
         except Exception as e:
             print(e)
             return False
@@ -79,8 +81,9 @@ class Server:
         ack = None
         try:
             ack = Datagram.from_bytes(self.server_socket.recv(self.frame_size))
-            if "ACK" not in ack.data:
+            if ack.flags != 16:
                 return False
+            print("Received ACK")
         except Exception as e:
             print(e)
             return False
@@ -99,8 +102,24 @@ class Server:
         ## If the seg_num of each segment matches the previous ack_num, send an acknowledgement.
         ## Otherwise, send a duplicate acknowledgement.
         ### Return the full request, source port, and source IP.
+        request = ''
+        while request[:-4] != '\r\n\r\n':
+            try:
+                pkt = Datagram.from_bytes(self.server_socket.recv(self.frame_size))
+                if pkt.flags == 25:
+                    request += pkt.data
+                    break
+                if pkt.flags != 24:
+                    print("Incorrect Packet Received")
+                    print(pkt)
+                    return False
+                print("Received SYN")
+                request += pkt.data
+            except Exception as e:
+                print(e)
+                return False
 
-        pass
+        return (request, pkt.source_port, pkt.ip_saddr)
 
 
     def process_request(self, request, dest_port, dest_ip):
@@ -112,6 +131,7 @@ class Server:
             dest_port (int): The destination port for the response.
             dest_ip (str): The destination IP for the response.
         """
+
 
         request_lines = request.split('\r\n')
         first_line = request_lines[0].split()

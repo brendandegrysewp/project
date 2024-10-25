@@ -68,9 +68,10 @@ class Client:
         try:
             request = f"SYN\r\n\r\n"
             print(f"Sending request: {request}")
-            new_datagram = Datagram(source_ip=self.client_ip, dest_ip=self.server_ip, source_port = self.client_port, dest_port = self.server_port, seq_num = self.seq_num, ack_num = self.ack_num, flags=24, window_size = 10, data=request)
+            new_datagram = Datagram(source_ip=self.client_ip, dest_ip=self.server_ip, source_port = self.client_port, dest_port = self.server_port, seq_num = self.seq_num, ack_num = self.ack_num, flags=2, window_size = 10, data=request)
             new_datagram_bytes = new_datagram.to_bytes()
             self.client_socket.sendto(new_datagram_bytes, (self.server_ip, self.server_port))
+            print("Sent SYN")
         except:
             return False
         ## 2. Recieve SYN/ACK
@@ -78,9 +79,10 @@ class Client:
         try:
             ack = Datagram.from_bytes(self.client_socket.recv(self.frame_size))
             # ack = self.client_socket.recv(self.frame_size)
-            if "SYNA" not in ack.data:#temp fix
+            if ack.flags != 18:
                 print((ack.data))
                 return False
+            print("Received SYN/ACK")
         except Exception as e:
             print(e)
             return False
@@ -88,9 +90,10 @@ class Client:
         try:
             request = f"ACK\r\n\r\n"
             print(f"Sending request: {request}")
-            new_datagram = Datagram(source_ip=self.client_ip, dest_ip=self.server_ip, source_port = self.client_port, dest_port = self.server_port, seq_num = self.seq_num, ack_num = self.ack_num, flags=24, window_size = 10, data=request)
+            new_datagram = Datagram(source_ip=self.client_ip, dest_ip=self.server_ip, source_port = self.client_port, dest_port = self.server_port, seq_num = self.seq_num, ack_num = self.ack_num, flags=16, window_size = 10, data=request)
             new_datagram_bytes = new_datagram.to_bytes()
             self.client_socket.sendto(new_datagram_bytes, (self.server_ip, self.server_port))
+            print("Sent ACK")
         except:
             return False
         return True
@@ -123,32 +126,38 @@ class Client:
         """
         
         ### Segment the request (segments no larger than frame_size)
-        res = []
+        segments = []
         split = len(request) // self.frame_size
         if len(request) % self.frame_size > 0:
             split += 1
         for d in range(split):
-            res.append(request[(self.frame_size*d):(self.frame_size*(d+1))])
+            segments.append(request[(self.frame_size*d):(self.frame_size*(d+1))])
 
         ### Send the request segments using Go-Back-N (use Datagram class to encapsulate the segments)
         ## Start by sending all datagrams in the window          
-        for message in res:
-            for seq_num in range(self.window_size):
-                print(f"Sending message: {message}")
-                new_datagram = Datagram(source_ip=self.client_ip, dest_ip=self.server_ip, source_port = self.client_port, dest_port = self.server_port, seq_num = self.seq_num, ack_num = self.ack_num, flags=24, window_size = 10, data=message)
+        while self.base <= len(segments):
+            self.base = self.seq_num
+            for segment in segments[self.base:self.base+self.window_size]:
+                print(f"Sending message: {segment}")
+                new_datagram = Datagram(source_ip=self.client_ip, dest_ip=self.server_ip, source_port = self.client_port, dest_port = self.server_port, seq_num = self.seq_num, ack_num = self.ack_num, flags=24, window_size = self.window_size, data=segment)
                 new_datagram_bytes = new_datagram.to_bytes()
                 sent_bytes = self.client_socket.sendto(new_datagram_bytes, (self.server_ip, self.server_port))
-                self.seq_num += 1
                 print(f"Sent {sent_bytes} bytes...\n")
+                self.seq_num += 1
                 if sent_bytes == 0:
                     print("Houston we have an error! Aborting...")
                     break
+            
+            while self.base < self.seq_num:
                 # listen for responses
-                ack = None
                 try:
-                    ack = self.client_socket.recv(self.frame_size).decode()
+                    ack = Datagram.from_bytes(self.client_socket.recv(self.frame_size))
+                    if ack.seq_num == self.base+1:
+                        self.base += 1
+                    else:
+                        break
                 
-                except socket.timeout:
+                except Exception as e:
                     print("Timed out!\n")
                     """
                     This is probably a great place to do something to determine
@@ -161,11 +170,10 @@ class Client:
                 except Exception as e:
                     print(e)
                 # this print statement confirms we can send and receive
-                print(ack)
-            self.base += self.window_size
-        ## process the acknowledgements
-        # If ack is good: increment base and transmit another packet
-        # If ack is duplicate: ignore ack
+                    print(ack)
+            ## process the acknowledgements
+            # If ack is good: increment base and transmit another packet
+            # If ack is duplicate: ignore ack
         # If timeout: adjust seq_num; retransmit segments in window from base
 
         pass
