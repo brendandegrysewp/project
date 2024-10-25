@@ -142,13 +142,17 @@ class Client:
 
         ### Send the request segments using Go-Back-N (use Datagram class to encapsulate the segments)
         ## Start by sending all datagrams in the window          
-        while self.base <= len(segments):
-            self.base = self.seq_num
-            for segment in segments[self.base-1:self.base+self.window_size-1]:
+        self.base = self.seq_num
+        offset = self.base-0
+        while self.base-offset < len(segments):
+            # print("base-offset length: ", self.base-offset, len(segments))
+            #self.base = self.seq_num
+            for segment in segments[self.base-offset:self.base-offset+self.window_size-offset]:
+                print(segment)
                 new_datagram = Datagram(source_ip=self.client_ip, dest_ip=self.server_ip, source_port = self.client_port, dest_port = self.server_port, seq_num = self.seq_num, ack_num = self.ack_num, flags=24, window_size = self.window_size, data=segment)
-                if self.base == len(segments)-1:
+                if self.base-offset == len(segments)-1:
                     new_datagram.flags = 25
-                print(f"Sending message: {new_datagram.data}")
+                #print(f"Sending message: {new_datagram.data}")
                 new_datagram_bytes = new_datagram.to_bytes()
                 sent_bytes = self.client_socket.sendto(new_datagram_bytes, (self.server_ip, self.server_port))
                 #print(f"Sent {sent_bytes} bytes...\n")
@@ -157,35 +161,37 @@ class Client:
                     print("Houston we have an error! Aborting...")
                     break
             
-            while self.base < self.seq_num:
-                # listen for responses
-                try:
-                    print(self.base)
-                    ack = Datagram.from_bytes(self.client_socket.recv(self.frame_size))
-                    if ack.ack_num == self.base+1:
-                        print("correct")
-                        self.base += 1
-                    else:
-                        print("wrong")
-                        break
-                
-                except Exception as e:
-                    print("Timed out!\n")
-                    """
-                    This is probably a great place to do something to determine
-                    if you should retransmit or not. There are multiple
-                    solutions to this, but the easiest is just to go back 
-                    to the top of your loop (nest it in a while loop that you break
-                    when you get an 'ACK'). Good luck!
-                    """
-                    return
+                while self.base < self.seq_num:
+                    # listen for responses
+                    try:
+                        # print(self.base)
+                        ack = Datagram.from_bytes(self.client_socket.recv(self.frame_size))
+                        print(ack.ack_num)
+                        if ack.ack_num == self.base+1:
+                            # print("correct")
+                            self.base += 1
+                        else:
+                            print("wrong")
+                            break
+                    
+                    except Exception as e:
+                        print("Timed out!\n")
+                        """
+                        This is probably a great place to do something to determine
+                        if you should retransmit or not. There are multiple
+                        solutions to this, but the easiest is just to go back 
+                        to the top of your loop (nest it in a while loop that you break
+                        when you get an 'ACK'). Good luck!
+                        """
+                        return
 
             ## process the acknowledgements
             # If ack is good: increment base and transmit another packet
             # If ack is duplicate: ignore ack
         # If timeout: adjust seq_num; retransmit segments in window from base
 
-        pass
+        print(len(request))
+        return
 
     def process_response_segments(self):
         """
