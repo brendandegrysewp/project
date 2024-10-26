@@ -67,11 +67,9 @@ class Client:
         ## 1. Send SYN 
         #remove
         request = f"SYN\r\n\r\n"
-        print(f"Sending request: {request}")
         new_datagram = Datagram(source_ip=self.client_ip, dest_ip=self.server_ip, source_port = self.client_port, dest_port = self.server_port, seq_num = self.seq_num, ack_num = self.ack_num, flags=2, window_size = 10, data=request)
         new_datagram_bytes = new_datagram.to_bytes()
         self.client_socket.sendto(new_datagram_bytes, (self.server_ip, self.server_port))
-        print("Sent SYN")
 
         ## 2. Recieve SYN/ACK
         ack = None
@@ -94,11 +92,9 @@ class Client:
             return False
         ## 3. Send ACK
         request = f"ACK\r\n\r\n"
-        print(f"Sending request: {request}")
         new_datagram = Datagram(source_ip=self.client_ip, dest_ip=self.server_ip, source_port = self.client_port, dest_port = self.server_port, seq_num = self.seq_num, ack_num = self.ack_num, flags=16, window_size = self.window_size, data=request)
         new_datagram_bytes = new_datagram.to_bytes()
         self.client_socket.sendto(new_datagram_bytes, (self.server_ip, self.server_port))
-        print("Sent ACK")
 
         return True
 
@@ -130,7 +126,6 @@ class Client:
         """
         ### Segment the request (segments no larger than frame_size)
         # request = request.encode()
-        return
 
         segments = []
         split = len(request) // (self.frame_size-60)
@@ -148,13 +143,14 @@ class Client:
             # print("base-offset length: ", self.base-offset, len(segments))
             #self.base = self.seq_num
             for segment in segments[self.base-offset:self.base-offset+self.window_size-offset]:
-                print("Seq: ", self.seq_num)
+                # print("Seq: ", self.seq_num)
                 new_datagram = Datagram(source_ip=self.client_ip, dest_ip=self.server_ip, source_port = self.client_port, dest_port = self.server_port, seq_num = self.seq_num, ack_num = self.ack_num, flags=24, window_size = self.window_size, data=segment)
                 if self.base-offset == len(segments)-1:
                     new_datagram.flags = 25
                 #print(f"Sending message: {new_datagram.data}")
                 new_datagram_bytes = new_datagram.to_bytes()
                 sent_bytes = self.client_socket.sendto(new_datagram_bytes, (self.server_ip, self.server_port))
+                print(segment)
                 #print(f"Sent {sent_bytes} bytes...\n")
                 self.seq_num += 1
                 if sent_bytes == 0:
@@ -164,15 +160,16 @@ class Client:
                 while self.base < self.seq_num:
                     # listen for responses
                     try:
-                        # print(self.base)
+                        print(self.base)
                         ack = Datagram.from_bytes(self.client_socket.recv(self.frame_size))
-                        print("ACK: ", ack.ack_num)
+                        print(ack.ack_num)
                         #check if thin flag
                         if ack.ack_num == self.base+1 and ack.flags == 16:
-                            # print("correct")
+                            print("correct")
                             self.base += 1
                         else:
                             print("wrong")
+                            self.seq_num = self.base
                             break
                     
                     except socket.timeout as e:
@@ -184,7 +181,7 @@ class Client:
                         to the top of your loop (nest it in a while loop that you break
                         when you get an 'ACK'). Good luck!
                         """
-                        return
+                        # return
 
             ## process the acknowledgements
             # If ack is good: increment base and transmit another packet
@@ -206,36 +203,40 @@ class Client:
         ### Return the full response
         print("processing response")
         request = ''
-        return
-        try:
-            while request[:-4] != '\r\n\r\n':
+        i = 0
+        pkt = ''
+        while request[:-4] != '\r\n\r\n':
+            try:
                 pkt = Datagram.from_bytes(self.client_socket.recv(self.frame_size))
-                print("Seq: ", pkt.seq_num)
-                if pkt.dest_port != self.client_port:
+            except socket.timeout as e:
+                if i < 2:
+                    i += 1
                     continue
-                if pkt.seq_num == self.ack_num:
-                    self.ack_num += 1
-                print("Ack: ", self.ack_num)
-                if pkt.flags != 24 and pkt.flags != 25:
-                    print("Incorrect Packet Received")
-                    return False
-                # print("Received ", request)
+                break
 
-                #send back ack
-                sendrequest = f"ACK\r\n\r\n"
-                #print(f"Sending request: ACK {self.ack_num}")
-                new_datagram = Datagram(source_ip=self.client_ip, dest_ip=self.server_ip, source_port = self.client_port, dest_port = self.client_port, seq_num = self.seq_num, ack_num = self.ack_num, flags=16, window_size = self.window_size, data=sendrequest)
-                new_datagram_bytes = new_datagram.to_bytes()
-                self.client_socket.sendto(new_datagram_bytes, (self.server_ip, self.server_port))
+            # print("Seq: ", pkt.seq_num)
+            if pkt.dest_port != self.client_port:
+                continue
+            if pkt.seq_num == self.ack_num:
+                self.ack_num += 1
                 request += pkt.data
-                if pkt.flags == 25:
-                    break
-            # print(request)
-            return request
+            # print("Ack: ", self.ack_num)
+            if pkt.flags != 24 and pkt.flags != 25:
+                print("Incorrect Packet Received")
+                continue
+            print("Received ", request)
 
-        except socket.timeout as e:
-            print(e)
-            return None
+            #send back ack
+            sendrequest = f"ACK\r\n\r\n"
+            #print(f"Sending request: ACK {self.ack_num}")
+            new_datagram = Datagram(source_ip=self.client_ip, dest_ip=self.server_ip, source_port = self.client_port, dest_port = self.client_port, seq_num = self.seq_num, ack_num = self.ack_num, flags=16, window_size = self.window_size, data=sendrequest)
+            new_datagram_bytes = new_datagram.to_bytes()
+            self.client_socket.sendto(new_datagram_bytes, (self.server_ip, self.server_port))
+            if pkt.flags == 25:
+                break
+        # print(request)
+        return request
+
 
     def close_socket(self):
         """
