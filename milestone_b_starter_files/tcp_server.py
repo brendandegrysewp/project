@@ -224,7 +224,7 @@ class Server:
             while self.base < self.seq_num:
                 # listen for responses
                 try:
-                    # print(self.base)
+                    print(self.base)
                     ack = Datagram.from_bytes(self.server_socket.recv(self.frame_size))
                     print(ack.ack_num)
                     if ack.ack_num == self.base+1:
@@ -232,7 +232,7 @@ class Server:
                         self.base += 1
                     else:
                         print("wrong")
-                        self.base += 1
+                        # self.base += 1
                         self.seq_num = self.base
                         break
                 
