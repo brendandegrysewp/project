@@ -203,7 +203,7 @@ class Client:
         # Otherwise, send a duplicate acknowledgement.
         ### Return the full response
         print("processing response")
-        return
+
         request = ''
         i = 0
         pkt = ''
