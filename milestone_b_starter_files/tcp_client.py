@@ -172,7 +172,6 @@ class Client:
                         self.base += 1
                     else:
                         # print("wrong")
-                        self.base = n
                         self.seq_num = self.base
                         break
                 
