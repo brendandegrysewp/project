@@ -230,6 +230,10 @@ class Server:
                     if ack.ack_num == self.base+1:
                         print("correct")
                         self.base += 1
+                    elif ack.ack_num < self.base+1:
+                        self.base = self.ack_num-1
+                        self.seq_num = self.base
+                        break
                     else:
                         print("wrong")
                         # self.base += 1
