@@ -157,30 +157,30 @@ class Client:
                     print("Houston we have an error! Aborting...")
                     break
             
-                while self.base < self.seq_num:
-                    # listen for responses
-                    try:
-                        print(self.base)
-                        ack = Datagram.from_bytes(self.client_socket.recv(self.frame_size))
-                        print(ack.ack_num)
-                        #check if thin flag
-                        if ack.ack_num == self.base+1 and ack.flags == 16:
-                            print("correct")
-                            self.base += 1
-                        else:
-                            print("wrong")
-                            self.seq_num = self.base
-                            break
-                    
-                    except socket.timeout as e:
-                        print("Timed out!\n")
-                        """
-                        This is probably a great place to do something to determine
-                        if you should retransmit or not. There are multiple
-                        solutions to this, but the easiest is just to go back 
-                        to the top of your loop (nest it in a while loop that you break
-                        when you get an 'ACK'). Good luck!
-                        """
+            while self.base < self.seq_num:
+                # listen for responses
+                try:
+                    print(self.base)
+                    ack = Datagram.from_bytes(self.client_socket.recv(self.frame_size))
+                    print(ack.ack_num)
+                    #check if thin flag
+                    if ack.ack_num == self.base+1 and ack.flags == 16:
+                        print("correct")
+                        self.base += 1
+                    else:
+                        print("wrong")
+                        self.seq_num = self.base
+                        break
+                
+                except socket.timeout as e:
+                    print("Timed out!\n")
+                    """
+                    This is probably a great place to do something to determine
+                    if you should retransmit or not. There are multiple
+                    solutions to this, but the easiest is just to go back 
+                    to the top of your loop (nest it in a while loop that you break
+                    when you get an 'ACK'). Good luck!
+                    """
                         # return
 
             ## process the acknowledgements
