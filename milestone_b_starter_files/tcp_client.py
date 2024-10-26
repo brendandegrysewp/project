@@ -138,11 +138,13 @@ class Client:
         ## Start by sending all datagrams in the window          
         self.base = self.seq_num
         offset = self.base-0
+        n = 0
         #trys and excepts are causing timeouts
         print(len(segments))
         while self.base-offset < len(segments):
             # print("base-offset length: ", self.base-offset, len(segments))
             #self.base = self.seq_num
+            n = self.base
             for segment in segments[self.base-offset:self.base-offset+self.window_size-offset]:
                 # print("Seq: ", self.seq_num)
                 new_datagram = Datagram(source_ip=self.client_ip, dest_ip=self.server_ip, source_port = self.client_port, dest_port = self.server_port, seq_num = self.seq_num, ack_num = self.ack_num, flags=24, window_size = self.window_size, data=segment)
@@ -151,7 +153,7 @@ class Client:
                 #print(f"Sending message: {new_datagram.data}")
                 new_datagram_bytes = new_datagram.to_bytes()
                 sent_bytes = self.client_socket.sendto(new_datagram_bytes, (self.server_ip, self.server_port))
-                print(segment)
+                # print(segment)
                 #print(f"Sent {sent_bytes} bytes...\n")
                 self.seq_num += 1
                 if sent_bytes == 0:
@@ -170,6 +172,7 @@ class Client:
                         self.base += 1
                     else:
                         # print("wrong")
+                        self.base = n
                         self.seq_num = self.base
                         break
                 
