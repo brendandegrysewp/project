@@ -240,18 +240,18 @@ class Server:
                     print("Timed out!\n")
                     # self.seq_num = self.base
                     # break
-                    i += 1
-                    if i > 5:
-                        # self.close_server()
-                        continue
+                    # i += 1
+                    # if i > 5:
+                    #     # self.close_server()
+                    #     continue
                         # break
-                        """
-                        This is probably a great place to do something to determine
-                        if you should retransmit or not. There are multiple
-                        solutions to this, but the easiest is just to go back 
-                        to the top of your loop (nest it in a while loop that you break
-                        when you get an 'ACK'). Good luck!
-                        """
+                    """
+                    This is probably a great place to do something to determine
+                    if you should retransmit or not. There are multiple
+                    solutions to this, but the easiest is just to go back 
+                    to the top of your loop (nest it in a while loop that you break
+                    when you get an 'ACK'). Good luck!
+                    """
         ### Send the response segments using Go-Back-N (use Datagram class to encapsulate the segments)
         ## Start by sending all datagrams in the window          
         ## process the acknowledgements

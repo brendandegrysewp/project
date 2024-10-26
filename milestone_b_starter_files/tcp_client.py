@@ -164,7 +164,7 @@ class Client:
                     ack = Datagram.from_bytes(self.client_socket.recv(self.frame_size))
                     print(ack.ack_num)
                     #check if thin flag
-                    if ack.ack_num == self.base+1 and ack.flags == 16:
+                    if ack.ack_num == self.base+1:# and ack.flags == 16:
                         print("correct")
                         self.base += 1
                     else:
@@ -202,6 +202,7 @@ class Client:
         # Otherwise, send a duplicate acknowledgement.
         ### Return the full response
         print("processing response")
+        return
         request = ''
         i = 0
         pkt = ''
