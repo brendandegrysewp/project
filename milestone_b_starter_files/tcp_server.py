@@ -102,7 +102,6 @@ class Server:
         ## Otherwise, send a duplicate acknowledgement.
         ### Return the full request, source port, and source IP.
 
-        return
         request = ''
         while request[:-4] != '\r\n\r\n':
             try:

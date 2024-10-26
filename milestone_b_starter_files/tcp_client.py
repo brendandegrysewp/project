@@ -130,6 +130,7 @@ class Client:
         """
         ### Segment the request (segments no larger than frame_size)
         # request = request.encode()
+        return
 
         segments = []
         split = len(request) // (self.frame_size-60)
