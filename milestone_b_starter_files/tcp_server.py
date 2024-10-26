@@ -241,8 +241,8 @@ class Server:
                     # break
                     i += 1
                     if i > 5:
-                        self.close_server()
-                        break
+                        # self.close_server()
+                        # break
                         """
                         This is probably a great place to do something to determine
                         if you should retransmit or not. There are multiple
