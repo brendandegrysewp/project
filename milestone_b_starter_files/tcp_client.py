@@ -21,7 +21,7 @@ class Client:
         ack_num (int): The current acknowledgment number for incoming messages.
     """
 
-    def __init__(self, client_ip='127.0.0.2', server_ip='127.128.0.1', server_port=8080, frame_size=1024, window_size = 5, timeout=5):
+    def __init__(self, client_ip='127.0.0.2', server_ip='127.128.0.1', server_port=8080, frame_size=1024, window_size = 5, timeout=1):
         """
         Initializes the Client with specified parameters.
 
@@ -130,7 +130,7 @@ class Client:
         """
         ### Segment the request (segments no larger than frame_size)
         # request = request.encode()
-        return
+
         segments = []
         split = len(request) // (self.frame_size-60)
         if len(request) % (self.frame_size-60) > 0:
