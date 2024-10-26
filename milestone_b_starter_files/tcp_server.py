@@ -232,17 +232,17 @@ class Server:
                         self.base += 1
                     else:
                         print("wrong")
-                        self.base -= 1
                         self.seq_num = self.base
                         break
                 
                 except socket.timeout as e:
                     print("Timed out!\n")
-                    self.seq_num = self.base
+                    # self.seq_num = self.base
                     # break
                     i += 1
                     if i > 5:
                         # self.close_server()
+                        continue
                         # break
                         """
                         This is probably a great place to do something to determine
