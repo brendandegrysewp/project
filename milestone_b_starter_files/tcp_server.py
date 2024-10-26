@@ -222,10 +222,10 @@ class Server:
                     
                     except socket.timeout as e:
                         print("Timed out!\n")
-                        i += 1
-                        if i >= 3:
-                            self.close_server()
-                            return
+                        # i += 1
+                        # if i >= 3:
+                        #     self.close_server()
+                        #     return
                         """
                         This is probably a great place to do something to determine
                         if you should retransmit or not. There are multiple
