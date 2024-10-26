@@ -222,6 +222,7 @@ class Server:
                     
                     except socket.timeout as e:
                         print("Timed out!\n")
+                        break
                         # i += 1
                         # if i >= 3:
                         #     self.close_server()
