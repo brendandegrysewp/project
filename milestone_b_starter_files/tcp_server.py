@@ -108,14 +108,15 @@ class Server:
                 pkt = Datagram.from_bytes(self.server_socket.recv(self.frame_size))
             except socket.timeout as e:
                 print(e)
-                return False
+                # return False
             if pkt.dest_port != self.server_port:
-                break
+                continue
             if pkt.seq_num == self.ack_num:
                 self.ack_num += 1
+                request += pkt.data
             if pkt.flags != 24 and pkt.flags != 25:
                 print("Incorrect Packet Received")
-                return False
+                continue
             print("Received ", request)
 
             #send back ack
@@ -124,7 +125,6 @@ class Server:
             new_datagram = Datagram(source_ip=self.server_ip, dest_ip=pkt.ip_saddr, source_port = self.server_port, dest_port = pkt.source_port, seq_num = self.seq_num, ack_num = self.ack_num, flags=16, window_size = 10, data=sendrequest)
             new_datagram_bytes = new_datagram.to_bytes()
             self.server_socket.sendto(new_datagram_bytes, (pkt.ip_saddr, pkt.source_port))
-            request += pkt.data
             if pkt.flags == 25:
                 break
 
@@ -222,10 +222,10 @@ class Server:
                     
                     except socket.timeout as e:
                         print("Timed out!\n")
-                        i += 1
-                        if i >= 3:
-                            self.close_server()
-                            return
+                        # i += 1
+                        # if i >= 3:
+                        #     self.close_server()
+                        #     return
                         """
                         This is probably a great place to do something to determine
                         if you should retransmit or not. There are multiple
