@@ -202,7 +202,7 @@ class Server:
         self.base = self.seq_num
         offset = self.base-0
         i = 0
-        while self.base-offset < len(segments):
+        while self.base-offset <= len(segments):
             # print("base-offset length: ", self.base-offset, len(segments))
             #self.base = self.seq_num
             for segment in segments[self.base-offset:self.base-offset+self.window_size-offset]:
@@ -230,10 +230,6 @@ class Server:
                     if ack.ack_num == self.base+1:
                         print("correct")
                         self.base += 1
-                    elif ack.ack_num < self.base+1:
-                        self.base = self.ack_num-1
-                        self.seq_num = self.base
-                        break
                     else:
                         print("wrong")
                         # self.base += 1
