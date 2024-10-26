@@ -181,7 +181,8 @@ class Client:
                     to the top of your loop (nest it in a while loop that you break
                     when you get an 'ACK'). Good luck!
                     """
-                    return
+                    self.seq_num = self.base
+                    break
 
             ## process the acknowledgements
             # If ack is good: increment base and transmit another packet
