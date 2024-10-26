@@ -143,7 +143,9 @@ class Client:
         ## Start by sending all datagrams in the window          
         self.base = self.seq_num
         offset = self.base-0
-        while self.base-offset < len(segments):
+        i = 0
+        while self.base-offset < len(segments) and i < 10:
+            i += 1
             # print("base-offset length: ", self.base-offset, len(segments))
             #self.base = self.seq_num
             for segment in segments[self.base-offset:self.base-offset+self.window_size-offset]:
@@ -208,7 +210,7 @@ class Client:
             try:
                 pkt = Datagram.from_bytes(self.client_socket.recv(self.frame_size))
                 if pkt.dest_port != self.client_port:
-                    break
+                    continue
                 if pkt.seq_num == self.ack_num:
                     self.ack_num += 1
                 if pkt.flags != 24 and pkt.flags != 25:

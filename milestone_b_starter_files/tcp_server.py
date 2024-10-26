@@ -111,7 +111,9 @@ class Server:
         ## Otherwise, send a duplicate acknowledgement.
         ### Return the full request, source port, and source IP.
         request = ''
-        while request[:-4] != '\r\n\r\n':
+        i = 0
+        while request[:-4] != '\r\n\r\n' and i < 10:
+            i += 1
             try:
                 pkt = Datagram.from_bytes(self.server_socket.recv(self.frame_size))
                 if pkt.dest_port != self.server_port:
@@ -197,7 +199,9 @@ class Server:
 
         self.base = self.seq_num
         offset = self.base-0
-        while self.base-offset < len(segments):
+        i = 0
+        while self.base-offset < len(segments) and i < 10:
+            i += 1
             # print("base-offset length: ", self.base-offset, len(segments))
             #self.base = self.seq_num
             for segment in segments[self.base-offset:self.base-offset+self.window_size-offset]:
