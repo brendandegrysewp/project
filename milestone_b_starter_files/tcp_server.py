@@ -105,6 +105,7 @@ class Server:
         ## If the seg_num of each segment matches the previous ack_num, send an acknowledgement.
         ## Otherwise, send a duplicate acknowledgement.
         ### Return the full request, source port, and source IP.
+        return
         request = ''
         while request[:-4] != '\r\n\r\n':
             try:
