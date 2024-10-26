@@ -205,6 +205,7 @@ class Client:
         ### Return the full response
         print("processing response")
         request = ''
+        return
         try:
             while request[:-4] != '\r\n\r\n':
                 pkt = Datagram.from_bytes(self.client_socket.recv(self.frame_size))

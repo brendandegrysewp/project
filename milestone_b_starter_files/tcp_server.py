@@ -142,6 +142,7 @@ class Server:
             dest_ip (str): The destination IP for the response.
         """
 
+        return
 
         request_lines = request.split('\r\n')
         first_line = request_lines[0].split()
