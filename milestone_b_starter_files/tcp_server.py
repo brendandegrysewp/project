@@ -104,6 +104,7 @@ class Server:
 
         request = ''
         i = 0
+        pkt = ''
         while request[:-4] != '\r\n\r\n':
             try:
                 pkt = Datagram.from_bytes(self.server_socket.recv(self.frame_size))
@@ -160,6 +161,7 @@ class Server:
         modified_since = None
 
         # Determine the response message based on the HTTP Request.
+        data = ''
 
         if method != "GET":
             # Invalid response
