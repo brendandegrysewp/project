@@ -65,44 +65,41 @@ class Client:
         """
         ### Establish a connection with the server via 3-way handshake
         ## 1. Send SYN 
-        try:
-            request = f"SYN\r\n\r\n"
-            print(f"Sending request: {request}")
-            new_datagram = Datagram(source_ip=self.client_ip, dest_ip=self.server_ip, source_port = self.client_port, dest_port = self.server_port, seq_num = self.seq_num, ack_num = self.ack_num, flags=2, window_size = 10, data=request)
-            new_datagram_bytes = new_datagram.to_bytes()
-            self.client_socket.sendto(new_datagram_bytes, (self.server_ip, self.server_port))
-            print("Sent SYN")
-        except:
-            return False
+        #remove
+        request = f"SYN\r\n\r\n"
+        print(f"Sending request: {request}")
+        new_datagram = Datagram(source_ip=self.client_ip, dest_ip=self.server_ip, source_port = self.client_port, dest_port = self.server_port, seq_num = self.seq_num, ack_num = self.ack_num, flags=2, window_size = 10, data=request)
+        new_datagram_bytes = new_datagram.to_bytes()
+        self.client_socket.sendto(new_datagram_bytes, (self.server_ip, self.server_port))
+        print("Sent SYN")
+
         ## 2. Recieve SYN/ACK
         ack = None
         try:
-            print(self.frame_size)
             ack = Datagram.from_bytes(self.client_socket.recv(self.frame_size))
+            #move try to here socket.timeout
             self.window_size = ack.window_size
             # print(len(new_datagram_bytes))
             # ack = self.client_socket.recv(self.frame_size)
             if ack.flags != 18:
-                print((ack.data))
+                print(ack.data)
                 return False
             if ack.ack_num != self.seq_num+1:
                 print("wrong ack")
                 return False
             self.seq_num += 1
             self.ack_num += 1
-        except Exception as e:
+        except socket.timeout as e:
             print(e)
             return False
         ## 3. Send ACK
-        try:
-            request = f"ACK\r\n\r\n"
-            print(f"Sending request: {request}")
-            new_datagram = Datagram(source_ip=self.client_ip, dest_ip=self.server_ip, source_port = self.client_port, dest_port = self.server_port, seq_num = self.seq_num, ack_num = self.ack_num, flags=16, window_size = 10, data=request)
-            new_datagram_bytes = new_datagram.to_bytes()
-            self.client_socket.sendto(new_datagram_bytes, (self.server_ip, self.server_port))
-            print("Sent ACK")
-        except:
-            return False
+        request = f"ACK\r\n\r\n"
+        print(f"Sending request: {request}")
+        new_datagram = Datagram(source_ip=self.client_ip, dest_ip=self.server_ip, source_port = self.client_port, dest_port = self.server_port, seq_num = self.seq_num, ack_num = self.ack_num, flags=16, window_size = 10, data=request)
+        new_datagram_bytes = new_datagram.to_bytes()
+        self.client_socket.sendto(new_datagram_bytes, (self.server_ip, self.server_port))
+        print("Sent ACK")
+
         return True
 
     def build_request(self, resource, timestamp=None):
@@ -132,6 +129,7 @@ class Client:
             request (str): The HTTP request to send.
         """
         ### Segment the request (segments no larger than frame_size)
+        # request = request.encode()
         segments = []
         split = len(request) // (self.frame_size-60)
         if len(request) % (self.frame_size-60) > 0:
@@ -143,6 +141,7 @@ class Client:
         ## Start by sending all datagrams in the window          
         self.base = self.seq_num
         offset = self.base-0
+        #trys and excepts are causing timeouts
         while self.base-offset < len(segments):
             # print("base-offset length: ", self.base-offset, len(segments))
             #self.base = self.seq_num
@@ -166,14 +165,15 @@ class Client:
                         # print(self.base)
                         ack = Datagram.from_bytes(self.client_socket.recv(self.frame_size))
                         print(ack.ack_num)
-                        if ack.ack_num == self.base+1:
+                        #check if thin flag
+                        if ack.ack_num == self.base+1 and ack.flags == 16:
                             # print("correct")
                             self.base += 1
                         else:
                             print("wrong")
                             break
                     
-                    except Exception as e:
+                    except socket.timeout as e:
                         print("Timed out!\n")
                         """
                         This is probably a great place to do something to determine
@@ -204,8 +204,8 @@ class Client:
         ### Return the full response
         print("processing response")
         request = ''
-        while request[:-4] != '\r\n\r\n':
-            try:
+        try:
+            while request[:-4] != '\r\n\r\n':
                 pkt = Datagram.from_bytes(self.client_socket.recv(self.frame_size))
                 if pkt.dest_port != self.client_port:
                     continue
@@ -225,13 +225,12 @@ class Client:
                 request += pkt.data
                 if pkt.flags == 25:
                     break
+            print(request)
+            return request
 
-            except Exception as e:
-                print(e)
-                return False
-
-        print(request)
-        return request
+        except socket.timeout as e:
+            print(e)
+            return None
 
     def close_socket(self):
         """
