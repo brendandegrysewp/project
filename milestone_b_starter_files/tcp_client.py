@@ -206,7 +206,9 @@ class Client:
         ### Return the full response
         print("processing response")
         request = ''
-        while request[:-4] != '\r\n\r\n':
+        i = 0
+        while request[:-4] != '\r\n\r\n' and i < 10:
+            i += 1
             try:
                 pkt = Datagram.from_bytes(self.client_socket.recv(self.frame_size))
                 if pkt.dest_port != self.client_port:

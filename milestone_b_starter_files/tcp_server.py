@@ -56,7 +56,9 @@ class Server:
         ### Process a request for connection with the server via 3-way handshake
         ## 1. Receive SYN
         SYN = None
-        while SYN == None:
+        i = 0
+        while SYN == None and i < 10:
+            i += 1
             try:
                 SYN = Datagram.from_bytes(self.server_socket.recv(self.frame_size))
                 self.destip = SYN.ip_saddr
