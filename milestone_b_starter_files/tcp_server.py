@@ -109,7 +109,12 @@ class Server:
             except socket.timeout as e:
                 print(e)
                 print("Bad bad bad")
-                # continue
+                sendrequest = f"ACK\r\n\r\n"
+                print(f"Sending request: ACK {self.ack_num}")
+                new_datagram = Datagram(source_ip=self.server_ip, dest_ip=pkt.ip_saddr, source_port = self.server_port, dest_port = pkt.source_port, seq_num = self.seq_num, ack_num = self.ack_num, flags=16, window_size = 10, data=sendrequest)
+                new_datagram_bytes = new_datagram.to_bytes()
+                self.server_socket.sendto(new_datagram_bytes, (pkt.ip_saddr, pkt.source_port))
+                continue
             if pkt.dest_port != self.server_port:
                 continue
             if pkt.seq_num == self.ack_num:
