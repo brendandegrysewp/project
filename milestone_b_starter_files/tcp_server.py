@@ -231,6 +231,7 @@ class Server:
                             self.base += 1
                         else:
                             print("wrong")
+                            self.seq_num = self.base
                             break
                     
                     except socket.timeout as e:
