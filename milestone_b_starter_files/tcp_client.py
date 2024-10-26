@@ -139,6 +139,7 @@ class Client:
         self.base = self.seq_num
         offset = self.base-0
         #trys and excepts are causing timeouts
+        print(len(segments))
         while self.base-offset < len(segments):
             # print("base-offset length: ", self.base-offset, len(segments))
             #self.base = self.seq_num
@@ -165,15 +166,15 @@ class Client:
                     print(ack.ack_num)
                     #check if thin flag
                     if ack.ack_num == self.base+1:# and ack.flags == 16:
-                        print("correct")
+                        # print("correct")
                         self.base += 1
                     else:
-                        print("wrong")
+                        # print("wrong")
                         self.seq_num = self.base
                         break
                 
                 except socket.timeout as e:
-                    print("Timed out!\n")
+                    print("Timed out!")
                     """
                     This is probably a great place to do something to determine
                     if you should retransmit or not. There are multiple
