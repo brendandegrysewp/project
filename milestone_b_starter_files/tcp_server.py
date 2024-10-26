@@ -240,7 +240,7 @@ class Server:
                         # self.seq_num = self.base
                         # break
                         i += 1
-                        if i > 3:
+                        if i > 5:
                             self.close_server()
                             break
                         """
