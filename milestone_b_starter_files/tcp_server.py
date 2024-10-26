@@ -221,28 +221,28 @@ class Server:
                     print("Houston we have an error! Aborting...")
                     break
             
-                while self.base < self.seq_num:
-                    # listen for responses
-                    try:
-                        # print(self.base)
-                        ack = Datagram.from_bytes(self.server_socket.recv(self.frame_size))
-                        # print(ack.ack_num)
-                        if ack.ack_num == self.base+1:
-                            # print("correct")
-                            self.base += 1
-                        else:
-                            print("wrong")
-                            self.seq_num = self.base
-                            break
-                    
-                    except socket.timeout as e:
-                        print("Timed out!\n")
-                        # self.seq_num = self.base
-                        # break
-                        i += 1
-                        if i > 5:
-                            self.close_server()
-                            break
+            while self.base < self.seq_num:
+                # listen for responses
+                try:
+                    # print(self.base)
+                    ack = Datagram.from_bytes(self.server_socket.recv(self.frame_size))
+                    # print(ack.ack_num)
+                    if ack.ack_num == self.base+1:
+                        # print("correct")
+                        self.base += 1
+                    else:
+                        print("wrong")
+                        self.seq_num = self.base
+                        break
+                
+                except socket.timeout as e:
+                    print("Timed out!\n")
+                    self.seq_num = self.base
+                    break
+                    i += 1
+                    if i > 5:
+                        self.close_server()
+                        break
                         """
                         This is probably a great place to do something to determine
                         if you should retransmit or not. There are multiple
