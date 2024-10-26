@@ -56,9 +56,7 @@ class Server:
         ### Process a request for connection with the server via 3-way handshake
         ## 1. Receive SYN
         SYN = None
-        i = 0
-        while SYN == None and i < 10:
-            i += 1
+        while SYN == None:
             try:
                 SYN = Datagram.from_bytes(self.server_socket.recv(self.frame_size))
                 self.destip = SYN.ip_saddr
@@ -113,9 +111,7 @@ class Server:
         ## Otherwise, send a duplicate acknowledgement.
         ### Return the full request, source port, and source IP.
         request = ''
-        i = 0
-        while request[:-4] != '\r\n\r\n' and i < 10:
-            i += 1
+        while request[:-4] != '\r\n\r\n':
             try:
                 pkt = Datagram.from_bytes(self.server_socket.recv(self.frame_size))
                 if pkt.dest_port != self.server_port:
@@ -202,8 +198,7 @@ class Server:
         self.base = self.seq_num
         offset = self.base-0
         i = 0
-        while self.base-offset < len(segments) and i < 10:
-            i += 1
+        while self.base-offset < len(segments):
             # print("base-offset length: ", self.base-offset, len(segments))
             #self.base = self.seq_num
             for segment in segments[self.base-offset:self.base-offset+self.window_size-offset]:
@@ -236,6 +231,10 @@ class Server:
                     
                     except Exception as e:
                         print("Timed out!\n")
+                        i += 1
+                        if i >= 3:
+                            self.close_server()
+                            return
                         """
                         This is probably a great place to do something to determine
                         if you should retransmit or not. There are multiple
@@ -243,7 +242,6 @@ class Server:
                         to the top of your loop (nest it in a while loop that you break
                         when you get an 'ACK'). Good luck!
                         """
-                        return
         ### Send the response segments using Go-Back-N (use Datagram class to encapsulate the segments)
         ## Start by sending all datagrams in the window          
         ## process the acknowledgements

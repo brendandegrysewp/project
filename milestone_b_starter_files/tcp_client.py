@@ -143,9 +143,7 @@ class Client:
         ## Start by sending all datagrams in the window          
         self.base = self.seq_num
         offset = self.base-0
-        i = 0
-        while self.base-offset < len(segments) and i < 10:
-            i += 1
+        while self.base-offset < len(segments):
             # print("base-offset length: ", self.base-offset, len(segments))
             #self.base = self.seq_num
             for segment in segments[self.base-offset:self.base-offset+self.window_size-offset]:
@@ -206,9 +204,7 @@ class Client:
         ### Return the full response
         print("processing response")
         request = ''
-        i = 0
-        while request[:-4] != '\r\n\r\n' and i < 10:
-            i += 1
+        while request[:-4] != '\r\n\r\n':
             try:
                 pkt = Datagram.from_bytes(self.client_socket.recv(self.frame_size))
                 if pkt.dest_port != self.client_port:
