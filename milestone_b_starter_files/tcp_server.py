@@ -21,7 +21,7 @@ class Server:
         ack_num (int): The current acknowledgment number for incoming messages.
     """
 
-    def __init__(self, server_ip='127.128.0.1', server_port=8080, frame_size=1024, window_size=4, timeout=5):
+    def __init__(self, server_ip='127.128.0.1', server_port=8080, frame_size=1024, window_size=4, timeout=1):
 
         # Establish the raw socket
         self.server_ip = server_ip
@@ -58,8 +58,6 @@ class Server:
         SYN = None
         while SYN == None:
             SYN = Datagram.from_bytes(self.server_socket.recv(self.frame_size))
-            self.destip = SYN.ip_saddr
-            self.destport = SYN.source_port
             if SYN.flags != 2 or SYN.seq_num != 0:
                 print("Didn't receive SYN")
                 print(SYN)
@@ -80,7 +78,6 @@ class Server:
         ## 3. Receive ACK
 
         ack = None
-        #remove
         try:
             ack = Datagram.from_bytes(self.server_socket.recv(self.frame_size))
         except socket.timeout as e:
@@ -89,7 +86,6 @@ class Server:
             return False
         if ack.flags != 16 or ack.seq_num != 1:
             return False
-        self.ack_num = ack.seq_num + 1
         return True
 
     def receive_request_segments(self):
