@@ -232,6 +232,7 @@ class Server:
                         self.base += 1
                     else:
                         print("wrong")
+                        self.base += 1
                         self.seq_num = self.base
                         break
                 
