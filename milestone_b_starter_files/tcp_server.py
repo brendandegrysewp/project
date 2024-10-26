@@ -202,10 +202,10 @@ class Server:
         self.base = self.seq_num
         offset = self.base-0
         i = 0
-        while self.base-offset <= len(segments):
+        while self.base-offset < len(segments):
             # print("base-offset length: ", self.base-offset, len(segments))
             #self.base = self.seq_num
-            for segment in segments[self.base-offset:self.base-offset+self.window_size-offset]:
+            for segment in segments[self.base-offset:self.base-offset+self.window_size]:
                 # print(segment)
                 # request = Datagram.from_bytes(segment)
                 new_datagram = Datagram(source_ip=self.server_ip, dest_ip=dest_ip, source_port = self.server_port, dest_port = dest_port, seq_num = self.seq_num, ack_num = self.ack_num, flags=24, window_size = self.window_size, data=segment)
