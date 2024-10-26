@@ -69,7 +69,6 @@ class Server:
         self.server_socket.settimeout(self.timeout)
         #remove try
         request = f"SYNACK\r\n\r\n"
-        print(f"Sending request: {request}")
         new_datagram = Datagram(source_ip=self.server_ip, dest_ip=SYN.ip_saddr, source_port = self.server_port, dest_port = SYN.source_port, seq_num = self.seq_num, ack_num = self.ack_num, flags=18, window_size = 10, data=request)
         new_datagram_bytes = new_datagram.to_bytes()
         # print(Datagram.from_bytes(new_datagram_bytes).data)
@@ -199,6 +198,7 @@ class Server:
         for d in range(split):
             segments.append(data[((self.frame_size-60)*d):((self.frame_size-60)*(d+1))])
 
+        print(request)
         self.base = self.seq_num
         offset = self.base-0
         i = 0
@@ -214,6 +214,7 @@ class Server:
                 #print(f"Sending message: {new_datagram.data}")
                 new_datagram_bytes = new_datagram.to_bytes()
                 sent_bytes = self.server_socket.sendto(new_datagram_bytes, (dest_ip, dest_port))
+                print(segment)
                 #print(f"Sent {sent_bytes} bytes...\n")
                 self.seq_num += 1
                 if sent_bytes == 0:
