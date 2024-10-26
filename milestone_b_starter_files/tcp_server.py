@@ -228,7 +228,7 @@ class Server:
                     ack = Datagram.from_bytes(self.server_socket.recv(self.frame_size))
                     # print(ack.ack_num)
                     if ack.ack_num == self.base+1:
-                        # print("correct")
+                        print("correct")
                         self.base += 1
                     else:
                         print("wrong")
