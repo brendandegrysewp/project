@@ -211,6 +211,7 @@ class Client:
             try:
                 pkt = Datagram.from_bytes(self.client_socket.recv(self.frame_size))
             except socket.timeout as e:
+                print(e)
                 if i < 2:
                     i += 1
                     continue
