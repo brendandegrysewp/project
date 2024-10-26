@@ -186,7 +186,7 @@ class Server:
                     data = "HTTP/1.1 304 Not Modified\r\n\r\n"
                     flags = 17
             else:
-                data = resource_info['data'].encode()
+                data = (resource_info['data']+"\r\n\r\n").encode()
                 data = f"HTTP/1.1 200 OK\r\nContent-Length: {len(data)}\r\n\r\n" + data.decode()
                 flags = 24
 
