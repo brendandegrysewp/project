@@ -237,7 +237,7 @@ class Server:
                 
                 except socket.timeout as e:
                     print("Timed out!\n")
-                    self.seq_num = self.base
+                    # self.seq_num = self.base
                     # break
                     i += 1
                     if i > 5:
