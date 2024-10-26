@@ -216,13 +216,13 @@ class Client:
                     continue
                 break
 
-            # print("Seq: ", pkt.seq_num)
+            print("Seq: ", pkt.seq_num)
             if pkt.dest_port != self.client_port:
                 continue
             if pkt.seq_num == self.ack_num:
                 self.ack_num += 1
                 request += pkt.data
-            # print("Ack: ", self.ack_num)
+            print("Ack: ", self.ack_num)
             if pkt.flags != 24 and pkt.flags != 25:
                 print("Incorrect Packet Received")
                 continue
@@ -230,7 +230,7 @@ class Client:
 
             #send back ack
             sendrequest = f"ACK\r\n\r\n"
-            #print(f"Sending request: ACK {self.ack_num}")
+            print(f"Sending request: ACK {self.ack_num}")
             new_datagram = Datagram(source_ip=self.client_ip, dest_ip=self.server_ip, source_port = self.client_port, dest_port = self.client_port, seq_num = self.seq_num, ack_num = self.ack_num, flags=16, window_size = self.window_size, data=sendrequest)
             new_datagram_bytes = new_datagram.to_bytes()
             self.client_socket.sendto(new_datagram_bytes, (self.server_ip, self.server_port))
