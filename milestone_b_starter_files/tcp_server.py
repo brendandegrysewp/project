@@ -108,7 +108,8 @@ class Server:
                 pkt = Datagram.from_bytes(self.server_socket.recv(self.frame_size))
             except socket.timeout as e:
                 print(e)
-                continue
+                print("Bad bad bad")
+                # continue
             if pkt.dest_port != self.server_port:
                 continue
             if pkt.seq_num == self.ack_num:
