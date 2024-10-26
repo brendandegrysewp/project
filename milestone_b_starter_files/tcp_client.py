@@ -126,7 +126,6 @@ class Client:
         """
         ### Segment the request (segments no larger than frame_size)
         # request = request.encode()
-        return
 
         segments = []
         split = len(request) // (self.frame_size-60)
@@ -182,7 +181,7 @@ class Client:
                     to the top of your loop (nest it in a while loop that you break
                     when you get an 'ACK'). Good luck!
                     """
-                        # return
+                    return
 
             ## process the acknowledgements
             # If ack is good: increment base and transmit another packet
@@ -212,7 +211,7 @@ class Client:
                 pkt = Datagram.from_bytes(self.client_socket.recv(self.frame_size))
             except socket.timeout as e:
                 print(e)
-                if i < 2:
+                if i < 5:
                     i += 1
                     continue
                 break
