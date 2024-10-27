@@ -67,7 +67,7 @@ class Client:
         ## 1. Send SYN 
         #remove
         request = f"SYN\r\n\r\n"
-        new_datagram = Datagram(source_ip=self.client_ip, dest_ip=self.server_ip, source_port = self.client_port, dest_port = self.server_port, seq_num = self.seq_num, ack_num = self.ack_num, flags=2, window_size = 10, data=request)
+        new_datagram = Datagram(source_ip=self.client_ip, dest_ip=self.server_ip, source_port = self.client_port, dest_port = self.server_port, seq_num = self.seq_num, ack_num = self.ack_num, flags=2, window_size = self.window_size, data=request)
         new_datagram_bytes = new_datagram.to_bytes()
         self.client_socket.sendto(new_datagram_bytes, (self.server_ip, self.server_port))
 
@@ -144,8 +144,7 @@ class Client:
         while self.base-offset < len(segments):
             # print("base-offset length: ", self.base-offset, len(segments))
             #self.base = self.seq_num
-            n = self.base
-            for segment in segments[self.base-offset:self.base-offset+self.window_size-offset]:
+            for segment in segments[self.seq_num-offset:self.base-offset+self.window_size]:
                 # print("Seq: ", self.seq_num)
                 new_datagram = Datagram(source_ip=self.client_ip, dest_ip=self.server_ip, source_port = self.client_port, dest_port = self.server_port, seq_num = self.seq_num, ack_num = self.ack_num, flags=24, window_size = self.window_size, data=segment)
                 if self.base-offset == len(segments)-1:
@@ -155,6 +154,7 @@ class Client:
                 sent_bytes = self.client_socket.sendto(new_datagram_bytes, (self.server_ip, self.server_port))
                 # print(segment)
                 #print(f"Sent {sent_bytes} bytes...\n")
+                print("Sending frame with sequence number", self.seq_num, "and flag", new_datagram.flags)
                 self.seq_num += 1
                 if sent_bytes == 0:
                     print("Houston we have an error! Aborting...")
@@ -163,16 +163,27 @@ class Client:
             while self.base < self.seq_num:
                 # listen for responses
                 try:
-                    print(self.base)
+                    # print(self.base)
                     ack = Datagram.from_bytes(self.client_socket.recv(self.frame_size))
-                    print(ack.ack_num)
+                    # print(ack.ack_num)
                     #check if thin flag
+                    print("Received ACK for frame ", ack.ack_num-1)#, "with flag", ack.flags)
+                    if ack.ack_num == self.base+1 and (ack.flags == 25 or self.base-offset == len(segments)-1):
+                        print("All frames acknowledged, sending FIN")
+                        segment = f"FIN\r\n\r\n"
+                        new_datagram = Datagram(source_ip=self.client_ip, dest_ip=self.server_ip, source_port = self.client_port, dest_port = self.server_port, seq_num = self.seq_num, ack_num = self.ack_num, flags=24, window_size = self.window_size, data=segment)
+                        new_datagram_bytes = new_datagram.to_bytes()
+                        sent_bytes = self.client_socket.sendto(new_datagram_bytes, (self.server_ip, self.server_port))
+                       
                     if ack.ack_num == self.base+1:# and ack.flags == 16:
                         # print("correct")
                         self.base += 1
+                        break
                     else:
                         # print("wrong")
-                        self.seq_num = self.base
+                        print("Ignoring out of order packet", ack.ack_num-1)
+                        # self.seq_num = self.base
+                        continue
                         break
                 
                 except socket.timeout as e:

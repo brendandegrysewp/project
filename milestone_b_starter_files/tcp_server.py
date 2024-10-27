@@ -69,7 +69,7 @@ class Server:
         self.server_socket.settimeout(self.timeout)
         #remove try
         request = f"SYNACK\r\n\r\n"
-        new_datagram = Datagram(source_ip=self.server_ip, dest_ip=SYN.ip_saddr, source_port = self.server_port, dest_port = SYN.source_port, seq_num = self.seq_num, ack_num = self.ack_num, flags=18, window_size = 10, data=request)
+        new_datagram = Datagram(source_ip=self.server_ip, dest_ip=SYN.ip_saddr, source_port = self.server_port, dest_port = SYN.source_port, seq_num = self.seq_num, ack_num = self.ack_num, flags=18, window_size = self.window_size, data=request)
         new_datagram_bytes = new_datagram.to_bytes()
         # print(Datagram.from_bytes(new_datagram_bytes).data)
         self.server_socket.sendto(new_datagram_bytes, (SYN.ip_saddr, SYN.source_port))
@@ -104,7 +104,7 @@ class Server:
         request = ''
         i = 0
         pkt = ''
-        while request[:-4] != '\r\n\r\n':
+        while True:#request[:-4] != '\r\n\r\n':
             try:
                 pkt = Datagram.from_bytes(self.server_socket.recv(self.frame_size))
             except socket.timeout as e:
@@ -118,6 +118,7 @@ class Server:
                     # self.server_socket.sendto(new_datagram_bytes, (pkt.ip_saddr, pkt.source_port))
                     i += 1
                     continue
+                print("broke")
                 break
 
             if pkt.dest_port != self.server_port:
@@ -129,6 +130,7 @@ class Server:
                 print("Incorrect Packet Received")
                 continue
             print("Received ", request)
+            print("Flag:",pkt.flags)
 
             #send back ack
             sendrequest = f"ACK\r\n\r\n"
@@ -202,10 +204,139 @@ class Server:
         self.base = self.seq_num
         offset = self.base-0
         i = 0
+        self.server_socket.settimeout(2)
+        print("Window size:",self.window_size)
+        print("Frames:", len(segments))
+        while self.base-offset < len(segments):
+            # print("base-offset length: ", self.base-offset, len(segments))
+            # self.base = self.seq_num
+            for segment in segments[self.seq_num-offset:self.base-offset+self.window_size]:
+                # request = Datagram.from_bytes(segment)
+                new_datagram = Datagram(source_ip=self.server_ip, dest_ip=dest_ip, source_port = self.server_port, dest_port = dest_port, seq_num = self.seq_num, ack_num = self.ack_num, flags=24, window_size = self.window_size, data=segment)
+                if self.seq_num-offset == len(segments)-1:
+                    new_datagram.flags = 25
+                #print(f"Sending message: {new_datagram.data}")
+                new_datagram_bytes = new_datagram.to_bytes()
+                sent_bytes = self.server_socket.sendto(new_datagram_bytes, (dest_ip, dest_port))
+                # print(segment)
+                #print(f"Sent {sent_bytes} bytes...\n")
+                print("Sending frame with sequence number", self.seq_num, "and flag", new_datagram.flags)
+                self.seq_num += 1
+                if sent_bytes == 0:
+                    print("Houston we have an error! Aborting...")
+                    break
+            
+            while self.base < self.seq_num:
+                # listen for responses
+                try:
+                    ack = Datagram.from_bytes(self.server_socket.recv(self.frame_size))
+                    # print(ack.ack_num,"==",self.base+1,ack.ack_num == self.base+1)
+                    print("Received ACK for frame ", ack.ack_num-1, "with flag", ack.flags)
+                    if ack.ack_num == self.base+1 and (ack.flags % 2 == 1):# or self.base-offset == len(segments)-1):
+                        print("All frames acknowledged, sending FIN")
+                        segment = f"FIN\r\n\r\n"
+                        new_datagram = Datagram(source_ip=self.server_ip, dest_ip=dest_ip, source_port = self.server_port, dest_port = dest_port, seq_num = self.seq_num, ack_num = self.ack_num, flags=25, window_size = self.window_size, data=segment)
+                        new_datagram_bytes = new_datagram.to_bytes()
+                        break
+                        # sent_bytes = self.server_socket.sendto(new_datagram_bytes, (dest_ip, dest_port))
+                    if ack.ack_num == self.base+1:
+                      # print("correct")
+                        self.base += 1
+                        break
+                    else:
+                        print("Ignoring out of order packet", ack.ack_num)
+                        # self.seq_num = self.base
+                        continue
+                        # break
+                        
+                
+                except socket.timeout as e:
+                    print("Timeout! Resending from frame",self.base)
+                    # break
+                    self.seq_num = self.base
+                    break
+                    # i += 1
+                    # if i > 5:
+                    #     # self.close_server()
+                    #     continue
+                        # break
+                    """
+                    This is probably a great place to do something to determine
+                    if you should retransmit or not. There are multiple
+                    solutions to this, but the easiest is just to go back 
+                    to the top of your loop (nest it in a while loop that you break
+                    when you get an 'ACK'). Good luck!
+                    """
+        ### Send the response segments using Go-Back-N (use Datagram class to encapsulate the segments)
+        ## Start by sending all datagrams in the window          
+        ## process the acknowledgements
+        # If ack is good: increment base and transmit another packet
+        # If ack is duplicate: ignore ack
+        # If timeout: adjust seq_num; retransmit segments in window from base
+    
+    def aprocess_request(self, request, dest_port, dest_ip):
+        """
+        Processes the received request and sends an appropriate response.
+
+        Args:
+            request (str): The HTTP request to process.
+            dest_port (int): The destination port for the response.
+            dest_ip (str): The destination IP for the response.
+        """
+
+        request_lines = request.split('\r\n')
+        first_line = request_lines[0].split()
+        method = first_line[0]
+        resource = first_line[1]
+        modified_since = None
+
+        # Determine the response message based on the HTTP Request.
+        data = ''
+
+        if method != "GET":
+            # Invalid response
+            data = "HTTP/1.1 400 Bad Request\r\n\r\nInvalid Request"
+            flags = 17
+        elif resource not in self.resources:
+            # Not found response
+            data = "HTTP/1.1 404 Not Found\r\n\r\nResource Not Found"
+            flags = 17
+        else:
+            # Check for If-Modified-Since header line
+            for line in request_lines[1:]:
+                if line.startswith("If-Modified-Since:"):
+                    modified_since = line.split(":", 1)[1].strip()
+                    break
+            resource_info = self.resources[resource]
+
+            # If header line exists, compare dates to determine response type
+            if modified_since:
+                modified_since_time = datetime.strptime(modified_since, "%a, %d %b %Y %H:%M:%S GMT")
+                last_modified_time = datetime.strptime(resource_info['last_modified'], "%a, %d %b %Y %H:%M:%S GMT")
+                if last_modified_time <= modified_since_time:
+                    data = "HTTP/1.1 304 Not Modified\r\n\r\n"
+                    flags = 17
+            else:
+                data = resource_info['data'].encode()
+                data = f"HTTP/1.1 200 OK\r\nContent-Length: {len(data)}\r\n\r\n" + data.decode()
+                flags = 24
+
+        ### Segment the response (segments no larger than frame_size)
+        segments = []
+        split = len(data) // (self.frame_size-60)
+        if len(data) % (self.frame_size-60) > 0:
+            split += 1
+        for d in range(split):
+            segments.append(data[((self.frame_size-60)*d):((self.frame_size-60)*(d+1))])
+
+        print(request)
+        self.base = self.seq_num
+        offset = self.base-0
+        i = 0
         while self.base-offset < len(segments):
             # print("base-offset length: ", self.base-offset, len(segments))
             #self.base = self.seq_num
-            for segment in segments[self.base-offset:self.base-offset+self.window_size-offset]:
+            for segment in segments[self.seq_num-offset:self.base-offset+self.window_size-1]:
                 # print(segment)
                 # request = Datagram.from_bytes(segment)
                 new_datagram = Datagram(source_ip=self.server_ip, dest_ip=dest_ip, source_port = self.server_port, dest_port = dest_port, seq_num = self.seq_num, ack_num = self.ack_num, flags=24, window_size = self.window_size, data=segment)
@@ -231,33 +362,17 @@ class Server:
                         print("correct")
                         self.base += 1
                     else:
-                        print("wrong")
-                        # self.base += 1
-                        self.seq_num = self.base
-                        break
+                        # self.seq_num = self.base
+                        # break
+                        continue
                 
                 except socket.timeout as e:
-                    print("Timed out!")
-                    # self.seq_num = self.base
-                    # break
+                    self.seq_num = self.base
+                    break
                     # i += 1
                     # if i > 5:
                     #     # self.close_server()
                     #     continue
-                        # break
-                    """
-                    This is probably a great place to do something to determine
-                    if you should retransmit or not. There are multiple
-                    solutions to this, but the easiest is just to go back 
-                    to the top of your loop (nest it in a while loop that you break
-                    when you get an 'ACK'). Good luck!
-                    """
-        ### Send the response segments using Go-Back-N (use Datagram class to encapsulate the segments)
-        ## Start by sending all datagrams in the window          
-        ## process the acknowledgements
-        # If ack is good: increment base and transmit another packet
-        # If ack is duplicate: ignore ack
-        # If timeout: adjust seq_num; retransmit segments in window from base
 
     def reset_connection(self):
         """
