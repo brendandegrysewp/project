@@ -66,8 +66,9 @@ class Router:
 
         ### INSERT CODE HERE ###
         # Store the destination, cost, and interface for each direct connection of the router in the LSDB
-        print(self.direct_connections)
-        pass
+        for item in self.direct_connections:
+            self.lsdb[item] = self.direct_connections[item]
+        print(self.lsdb)
 
     def update_lsdb(self, adv_rtr: str, lsa: str):
         """
@@ -81,6 +82,7 @@ class Router:
             None
         """
         lsa = [tuple(line.split(',')) for line in lsa.split('\r\n')]
+        print(lsa)
         self.lsdb[adv_rtr] = [(neighbor.strip(), int(cost.strip()), interface.strip()) for neighbor, cost, interface in lsa]
 
     def send_initial_lsa(self):
@@ -193,11 +195,18 @@ class Router:
         """
         ### INSERT CODE HERE ###
         ## Create the graph by add an edge (the node, neighbor, cost, and interface) for each entry in the LSDB.
-
+        network = Graph()
+        for key in self.lsdb:
+            print(key, self.lsdb[key])
+            network.add_edge(self.router_id, key, self.lsdb[key][0], self.lsdb[key][1])
+        print(network)
 
         ## Initialization for Djikstra's algorithm
         # Create a set of visited nodes that has the start node only (initially)
+        visited = []
         # Set the distance to all known nodes to infinity, except for:
+        bestpaths = {}
+
         #       - the start node, which is initialized to 0
         #       - the nodes directly connected to the start node should have distance equal to their cost
         # In order to determine the interface for the best path, track the previous nodes for each node 
@@ -307,4 +316,5 @@ if __name__ == "__main__":
     }
     
     R1 = Router('1.1.1.1', r1_interfaces, r1_direct_connections)
+    R1.run_route_alg()
     R1.shutdown()

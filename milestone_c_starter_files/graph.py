@@ -39,3 +39,6 @@ class Graph:
         self.add_node(from_node)  # Ensure the source node exists
         self.add_node(to_node)    # Ensure the destination node exists
         self.nodes[from_node].append((to_node, cost, interface))
+    
+    def __str__(self):
+        return self.nodes.__str__()
