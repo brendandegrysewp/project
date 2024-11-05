@@ -189,15 +189,45 @@ class Router:
         hgram = HTTPDatagram.from_bytes(dgram)
 
         ## If the next hop for the datagram associated with one of the router interfaces:
-        if hgram.next_hop in self.router_interfaces:
+        if True or hgram.next_hop in self.router_interfaces.values():
         # Convert the destination IP address to binary for longest prefix matching
             octets = hgram.ip_daddr.split('.')
             octets = [bin(int(x))[2:] for x in octets]
             octets = ["0"*(8-len(y))+y for y in octets]
-            binrep = "".join(["0"*(8-len(y))+y for y in octets])
-            print(octets)
+            destbits = "".join(["0"*(8-len(y))+y for y in octets])
         # Perform longest prefix match against known networks (those in the forwarding table with a CIDR)
+            cidrs = {}
+            for item in self.forwarding_table:
+                splits = item.split("/")
+                if len(splits) != 2:
+                    continue
+                octets = splits[0].split('.')
+                octets = [bin(int(x))[2:] for x in octets]
+                octets = ["0"*(8-len(y))+y for y in octets]
+                bits = "".join(["0"*(8-len(y))+y for y in octets])
+                cidrs[splits[0]] = (bits, splits[1])
+            # print("CIDRs:", cidrs)
+            # print("Dest bits:", destbits)
+            matches = []
+            for item in cidrs:
+                matchlen = int(cidrs[item][1])
+                # print(destbits[:matchlen] , cidrs[item][0][:matchlen])
+                if destbits[:matchlen] == cidrs[item][0][:matchlen]:
+                    matches.append((item,str(matchlen)))
+                    # print("found")
+            if len(matches) > 0:
+                matches.sort(key=lambda x: x[1], reverse=True)
+                interface = self.forwarding_table["/".join(matches[0])][0]
         # Forward the datagram to the correct interface
+                source, dest = self.router_interfaces[interface]
+                int_socket = self.interface_sockets[interface]
+                new_datagram = hgram
+                new_datagram.next_hop=dest
+                try:
+                    int_socket.sendto(new_datagram.to_bytes(), (dest, 0))
+                    logging.info(f'{self.router_id}: HTTP forwarded to {dest}.')
+                except Exception as e:
+                    logging.error(f'Error forwarding HTTP: {e}')
  
     def run_route_alg(self):
         """
@@ -291,9 +321,9 @@ class Router:
         for item in bestpaths:
             # print(bestpaths[item])
             forwardtable[item] = (bestpaths[item][0][-1][1], bestpaths[item][0][-1][0])
-        print(forwardtable)
-        print("")
-        return forwardtable
+        # print(forwardtable)
+        # print("")
+        self.forwarding_table = forwardtable
 
     def process_datagrams(self):
         """
