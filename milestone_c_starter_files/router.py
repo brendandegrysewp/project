@@ -66,9 +66,11 @@ class Router:
 
         ### INSERT CODE HERE ###
         # Store the destination, cost, and interface for each direct connection of the router in the LSDB
+        # print(self.direct_connections)
+        self.lsdb[self.router_id] = []
         for item in self.direct_connections:
-            self.lsdb[item] = self.direct_connections[item]
-        print(self.lsdb)
+            self.lsdb[self.router_id].append((item, self.direct_connections[item][0], self.direct_connections[item][1]))# = self.direct_connections[item]
+        # print(self.lsdb)
 
     def update_lsdb(self, adv_rtr: str, lsa: str):
         """
@@ -82,8 +84,9 @@ class Router:
             None
         """
         lsa = [tuple(line.split(',')) for line in lsa.split('\r\n')]
-        print(lsa)
         self.lsdb[adv_rtr] = [(neighbor.strip(), int(cost.strip()), interface.strip()) for neighbor, cost, interface in lsa]
+        # print("Updated:",self.lsdb)
+        # print("")
 
     def send_initial_lsa(self):
         """
@@ -149,12 +152,19 @@ class Router:
 
         ### INSERT CODE HERE ###
         ## Convert the lsa packet from bytes to a LSADatagram class object
+        dgram = LSADatagram.from_bytes(lsa)
 
         ## If the LSA is new and not from the router itself:
+
+        if dgram.adv_rtr != self.router_id and dgram.lsa_seq_num >= self.lsa_seq_num:
         # Reset the LSA timer (Router will assume all LSAs have been received if timer expires - greater than 5 seconds since new LSA received)
+            self.lsa_timer = time.time()
         # Update the LSA sequence number for the advertising router
+            self.lsa_seq_num += 1
         # Update the LSDB with the LSA data
+            self.update_lsdb(dgram.adv_rtr, dgram.lsa_data)
         # Forward the LSA to all other interfaces, except the interface it was received on.
+            self.forward_lsa(dgram,interface)
         pass
 
     def forward_datagram(self, dgram: bytes):
@@ -176,6 +186,7 @@ class Router:
 
         ### INSERT CODE HERE ###
         ## Convert the datagram bytes to an HTTPDatagram object
+        hgram = HTTPDatagram.from_bytes(dgram)
 
         ## If the next hop for the datagram associated with one of the router interfaces:
         # Convert the destination IP address to binary for longest prefix matching
@@ -196,19 +207,43 @@ class Router:
         ### INSERT CODE HERE ###
         ## Create the graph by add an edge (the node, neighbor, cost, and interface) for each entry in the LSDB.
         network = Graph()
-        for key in self.lsdb:
-            print(key, self.lsdb[key])
-            network.add_edge(self.router_id, key, self.lsdb[key][0], self.lsdb[key][1])
-        print(network)
+        for from_id in self.lsdb:
+            # print(from_id, ":", self.lsdb[from_id])
+            for to_id in self.lsdb[from_id]:
+                # print(to_id)
+                network.add_edge(from_id, to_id[0], to_id[1], to_id[2])
+        # print(network)
 
         ## Initialization for Djikstra's algorithm
         # Create a set of visited nodes that has the start node only (initially)
         visited = []
         # Set the distance to all known nodes to infinity, except for:
         bestpaths = {}
-
         #       - the start node, which is initialized to 0
+        for con in network.nodes:
+            for router in network.nodes[con]:
+                bestpaths[router[0]] = (None, None)
+
+        bestpaths[self.router_id] = ([self.router_id], 0)
+        # print(bestpaths)
+        # print("Best paths:",bestpaths)
         #       - the nodes directly connected to the start node should have distance equal to their cost
+        for con in network.nodes[self.router_id]:
+            bestpaths[con[0]] = ([(self.router_id,None),(con[0],con[2])], con[1])
+        # print("Best paths:",bestpaths)
+
+        for node in network.nodes:
+            while node not in visited:
+                nodecost = bestpaths[node][1]
+                for con in network.nodes[node]:
+                    if con not in visited:
+                        if bestpaths[con[0]][1] == None or nodecost + con[1] < bestpaths[con[0]][1]:
+                            path = bestpaths[node][0].copy()
+                            path.append((con[0], con[2]))
+                            bestpaths[con[0]] = (path, nodecost+con[1])
+                visited.append(node)
+        # print(self.router_id,": ", bestpaths,sep="")
+
         # In order to determine the interface for the best path, track the previous nodes for each node 
         #       on the shortest path from the start node. Initially, set this to (None, None) for each node
         #       to represent that the previous node and it's interface have not been recorded yet.
@@ -246,7 +281,13 @@ class Router:
         # 2. The shortest known distance to that node from the source, stored in 'D[node]'.
         # If there is no path to the node, the interface is set to None.
         # The resulting forwarding table maps each node to a tuple: (interface, shortest distance).
-        pass
+        forwardtable = {}
+        for item in bestpaths:
+            # print(bestpaths[item])
+            forwardtable[item] = (bestpaths[item][0][-1][1], bestpaths[item][0][-1][0])
+        print(forwardtable)
+        print("")
+        return forwardtable
 
     def process_datagrams(self):
         """

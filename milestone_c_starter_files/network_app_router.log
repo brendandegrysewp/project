@@ -1,0 +1,27 @@
+INFO - 1.1.1.1 has sent the initial LSA.
+INFO - 2.2.2.2 has sent the initial LSA.
+INFO - 3.3.3.3 has sent the initial LSA.
+INFO - 4.4.4.4 has sent the initial LSA.
+INFO - 5.5.5.5 has sent the initial LSA.
+INFO - 6.6.6.6 has sent the initial LSA.
+INFO - 3.3.3.3: LSA forwarded to 127.248.4.1.
+INFO - 3.3.3.3: LSA forwarded to 127.248.8.1.
+INFO - 3.3.3.3: LSA forwarded to 127.248.16.2.
+INFO - 3.3.3.3: LSA forwarded to 127.10.0.1.
+INFO - 2.2.2.2: LSA forwarded to 127.248.0.1.
+INFO - 2.2.2.2: LSA forwarded to 127.30.0.1.
+INFO - 2.2.2.2: LSA forwarded to 127.248.12.2.
+INFO - 2.2.2.2: LSA forwarded to 127.248.8.2.
+INFO - 4.4.4.4: LSA forwarded to 127.248.12.1.
+INFO - 4.4.4.4: LSA forwarded to 127.40.0.1.
+INFO - 4.4.4.4: LSA forwarded to 127.248.24.2.
+INFO - 4.4.4.4: LSA forwarded to 127.248.20.2.
+INFO - 5.5.5.5: LSA forwarded to 127.248.16.1.
+INFO - 5.5.5.5: LSA forwarded to 127.248.20.1.
+INFO - 5.5.5.5: LSA forwarded to 127.248.28.2.
+INFO - 1.1.1.1: LSA forwarded to 127.0.0.1.
+INFO - 1.1.1.1: LSA forwarded to 127.248.0.2.
+INFO - 1.1.1.1: LSA forwarded to 127.248.4.2.
+INFO - 6.6.6.6: LSA forwarded to 127.248.24.1.
+INFO - 6.6.6.6: LSA forwarded to 127.248.28.1.
+INFO - 6.6.6.6: LSA forwarded to 127.128.0.1.
