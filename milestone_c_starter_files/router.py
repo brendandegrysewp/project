@@ -189,7 +189,13 @@ class Router:
         hgram = HTTPDatagram.from_bytes(dgram)
 
         ## If the next hop for the datagram associated with one of the router interfaces:
+        if hgram.next_hop in self.router_interfaces:
         # Convert the destination IP address to binary for longest prefix matching
+            octets = hgram.ip_daddr.split('.')
+            octets = [bin(int(x))[2:] for x in octets]
+            octets = ["0"*(8-len(y))+y for y in octets]
+            binrep = "".join(["0"*(8-len(y))+y for y in octets])
+            print(octets)
         # Perform longest prefix match against known networks (those in the forwarding table with a CIDR)
         # Forward the datagram to the correct interface
  
