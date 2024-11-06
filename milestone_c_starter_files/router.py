@@ -156,11 +156,11 @@ class Router:
 
         ## If the LSA is new and not from the router itself:
 
-        if dgram.adv_rtr != self.router_id and dgram.lsa_seq_num >= self.lsa_seq_num:
+        if  dgram.adv_rtr != self.router_id and (dgram.adv_rtr not in self.router_lsa_num or dgram.lsa_seq_num > self.router_lsa_num[dgram.adv_rtr]):
         # Reset the LSA timer (Router will assume all LSAs have been received if timer expires - greater than 5 seconds since new LSA received)
             self.lsa_timer = time.time()
         # Update the LSA sequence number for the advertising router
-            self.lsa_seq_num += 1
+            self.router_lsa_num[dgram.adv_rtr] = dgram.lsa_seq_num
         # Update the LSDB with the LSA data
             self.update_lsdb(dgram.adv_rtr, dgram.lsa_data)
         # Forward the LSA to all other interfaces, except the interface it was received on.
@@ -189,7 +189,7 @@ class Router:
         hgram = HTTPDatagram.from_bytes(dgram)
 
         ## If the next hop for the datagram associated with one of the router interfaces:
-        if True or hgram.next_hop in self.router_interfaces.values():
+        if hgram.next_hop in [connection[0] for connection in self.router_interfaces.values()]:
         # Convert the destination IP address to binary for longest prefix matching
             octets = hgram.ip_daddr.split('.')
             octets = [bin(int(x))[2:] for x in octets]
