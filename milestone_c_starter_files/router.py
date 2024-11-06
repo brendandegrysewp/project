@@ -272,11 +272,10 @@ class Router:
             while node not in visited:
                 nodecost = bestpaths[node][1]
                 for con in network.nodes[node]:
-                    if con not in visited:
-                        if bestpaths[con[0]][1] == None or nodecost + con[1] < bestpaths[con[0]][1]:
-                            path = bestpaths[node][0].copy()
-                            path.append((con[0], con[2]))
-                            bestpaths[con[0]] = (path, nodecost+con[1])
+                    if bestpaths[con[0]][1] == None or nodecost + con[1] < bestpaths[con[0]][1]:
+                        path = bestpaths[node][0].copy()
+                        path.append((con[0], con[2]))
+                        bestpaths[con[0]] = (path, nodecost+con[1])
                 visited.append(node)
         # print(self.router_id,": ", bestpaths,sep="")
 
@@ -324,6 +323,7 @@ class Router:
         # print(forwardtable)
         # print("")
         self.forwarding_table = forwardtable
+        self.forwarding_table[self.router_id] = (None, 0)
 
     def process_datagrams(self):
         """
