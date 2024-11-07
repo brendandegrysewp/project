@@ -337,7 +337,7 @@ class Router:
             if bestpaths[item][0] == None:
                 forwardtable[item] = (None, 0)
                 continue
-            forwardtable[item] = (bestpaths[item][0][-1][1], bestpaths[item][1])
+            forwardtable[item] = (bestpaths[item][0][1][1], bestpaths[item][1])
         # print(forwardtable)
         # print("")
         self.forwarding_table = forwardtable
