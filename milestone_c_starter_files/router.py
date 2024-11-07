@@ -268,15 +268,6 @@ class Router:
             bestpaths[con[0]] = ([(self.router_id,None),(con[0],con[2])], con[1])
         # print("Best paths:",bestpaths)
 
-        for node in network.nodes:
-            while node not in visited:
-                nodecost = bestpaths[node][1]
-                for con in network.nodes[node]:
-                    if bestpaths[con[0]][1] == None or nodecost + con[1] < bestpaths[con[0]][1]:
-                        path = bestpaths[node][0].copy()
-                        path.append((con[0], con[2]))
-                        bestpaths[con[0]] = (path, nodecost+con[1])
-                visited.append(node)
         # print(self.router_id,": ", bestpaths,sep="")
 
         # In order to determine the interface for the best path, track the previous nodes for each node 
@@ -288,9 +279,32 @@ class Router:
         ## Dijkstra's algorithm
 
         # While not all nodes have been processed (i.e., while N_prime does not include all nodes in the graph)
-    
+        def allVisited():
+            for n in network.nodes:
+                if n not in visited:
+                    return False
+            return True
+        node = self.router_id
+        # for node in network.nodes:
+        while not allVisited():
             # Find the node 'w' not in N_prime that has the smallest distance (D[w]) from the source node
             # This is the next node to process
+            nodecost = bestpaths[node][1]
+            for con in network.nodes[node]:
+                if con[0] not in visited:
+                    if bestpaths[con[0]][1] == None or nodecost + con[1] <= bestpaths[con[0]][1]:
+                        path = bestpaths[node][0].copy()
+                        path.append((con[0], con[2]))
+                        bestpaths[con[0]] = (path, nodecost+con[1])
+            visited.append(node)
+            print(visited)
+            #### Rember to cite Mat Wanta B2
+            # node = filter(lambda x: x not in visited, list(bestpaths)).__next__()
+            print(f"router at {self.router_id} {[(x, bestpaths[x][1]) for x in bestpaths if x not in visited and bestpaths[x][1] != None]}")
+            node = [(x, bestpaths[x][1]) for x in bestpaths if x not in visited and bestpaths[x][1] != None]
+            node.sort(key= lambda x: x[1])
+            if len(node) != 0:
+                node = node[0][0]
     
             # Add node 'w' to the set of processed nodes N_prime (i.e., its shortest path has been found)
     
@@ -316,14 +330,18 @@ class Router:
         # 2. The shortest known distance to that node from the source, stored in 'D[node]'.
         # If there is no path to the node, the interface is set to None.
         # The resulting forwarding table maps each node to a tuple: (interface, shortest distance).
+        bestpaths[self.router_id] = (None, 0)
         forwardtable = {}
         for item in bestpaths:
             # print(bestpaths[item])
+            if bestpaths[item][0] == None:
+                forwardtable[item] = (None, 0)
+                continue
             forwardtable[item] = (bestpaths[item][0][-1][1], bestpaths[item][1])
         # print(forwardtable)
         # print("")
         self.forwarding_table = forwardtable
-        self.forwarding_table[self.router_id] = (None, 0)
+        # self.forwarding_table[self.router_id] = (None, 0)
 
     def process_datagrams(self):
         """
