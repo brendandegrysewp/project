@@ -298,8 +298,7 @@ class Router:
                         bestpaths[con[0]] = (path, nodecost+con[1])
             visited.append(node)
             print(visited)
-            #### Rember to cite Mat Wanta B2
-            # node = filter(lambda x: x not in visited, list(bestpaths)).__next__()
+            #### Cadet Matthew Wanta, B2, CO 26', assisted me by identifing that .sort() modifies the list and does not return a list, instead it returns None
             print(f"router at {self.router_id} {[(x, bestpaths[x][1]) for x in bestpaths if x not in visited and bestpaths[x][1] != None]}")
             node = [(x, bestpaths[x][1]) for x in bestpaths if x not in visited and bestpaths[x][1] != None]
             node.sort(key= lambda x: x[1])
