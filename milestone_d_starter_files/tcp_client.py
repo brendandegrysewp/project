@@ -96,7 +96,8 @@ class Client:
                 return True
         return False
 
-    def build_request(self, resource, timestamp=None):
+    #Add option for post
+    def build_request(self, resource, type="GET", data=None, timestamp=None):
         """
         Builds an HTTP GET request string.
 
@@ -107,11 +108,17 @@ class Client:
         Returns:
             str: The HTTP request as a string.
         """
-        request = f"GET {resource} HTTP/1.1\r\nHost: {self.server_ip}\r\n"
-        if timestamp:
-            request += f"If-Modified-Since: {timestamp}\r\n"
-        request += "\r\n"
-        return request
+        if type == "GET":
+            request = f"GET {resource} HTTP/1.1\r\nHost: {self.server_ip}\r\n"
+            if timestamp:
+                request += f"If-Modified-Since: {timestamp}\r\n"
+            request += "\r\n"
+            return request
+
+        elif type == "POST":#Check the type of the request we are sending
+            request = f"POST {resource} HTTP/1.1\r\nHost: {self.server_ip}\r\nContent-Length: {len(data)}\r\n{data}\r\n"#build the request string
+            request += "\r\n"
+            return request#return it
 
     def send_request_segments(self, request):
         """
@@ -140,18 +147,23 @@ class Client:
                 )
                 self.client_socket.sendto(new_datagram.to_bytes(), (self.gateway, 0))
                 self.seq_num += 1
+                # print(segment)
 
             # Processing acknowledgments
-            while self.base < len(segments):
+            startTime = time.time()
+            ###Check for timeout
+            while time.time()-startTime < 15:# and self.base < self.seq_num:#self.base < len(segments) and :
                 try:
                     frame = self.client_socket.recv(self.frame_size)
                 except socket.timeout:
+                    #Remove this so that sequence number remains as the last one acknowledged
                     self.seq_num = self.base + init_seq_num  # Retransmit on timeout
                     break
 
                 datagram_fields = HTTPDatagram.from_bytes(frame)
+                # print(self.base)
                 # Confirm frame is meant for this application and is an ACK for the oldest sent packet
-                if (datagram_fields.next_hop == self.client_ip) and (datagram_fields.ip_saddr == self.server_ip) and (datagram_fields.flags == 16) and (datagram_fields.ack_num == self.base + init_seq_num + 1):
+                if (datagram_fields.next_hop == self.client_ip) and (datagram_fields.ip_saddr == self.server_ip) and (datagram_fields.flags == 16):# and (datagram_fields.ack_num == self.base + init_seq_num + 1):
                     # send another segment (base + window_size) if necessary
                     if self.base + self.window_size < len(segments):
                         segment = segments[self.base + self.window_size]
@@ -162,7 +174,9 @@ class Client:
                         self.client_socket.sendto(datagram_bytes, (self.gateway, 0))
                         self.seq_num += 1
                     # increment base
-                    self.base += 1  
+                    #The ack acknowledges all packets it received using the ack number, so the one it returns is the last one it received
+                    self.base = datagram_fields.ack_num  
+                    break
 
     def process_response_segments(self):
         """
@@ -187,17 +201,18 @@ class Client:
                             response += datagram_fields.data
                             flags = datagram_fields.flags
 
-                        # Send ACK
-                        ack = HTTPDatagram(
-                            source_ip=self.client_ip, dest_ip=datagram_fields.ip_saddr,
-                            source_port=self.client_port, dest_port=datagram_fields.source_port,
-                            seq_num=self.seq_num, ack_num=self.ack_num,
-                            flags=16, window_size=self.window_size, next_hop=self.gateway, data='ACK'
-                        )
-                        self.client_socket.sendto(ack.to_bytes(), (self.gateway, 0))
             except Exception as e:
                 print(f'Error while receiving response: {e}')
                 continue
+            #Moved sending the ack to the outside of this loop so it only does it after a certain period of time
+            # Send ACK
+            ack = HTTPDatagram(
+                source_ip=self.client_ip, dest_ip=datagram_fields.ip_saddr,
+                source_port=self.client_port, dest_port=datagram_fields.source_port,
+                seq_num=self.seq_num, ack_num=self.ack_num,
+                flags=16, window_size=self.window_size, next_hop=self.gateway, data='ACK'
+            )
+            self.client_socket.sendto(ack.to_bytes(), (self.gateway, 0))
         return response
 
     def close_socket(self):
@@ -206,7 +221,7 @@ class Client:
         """
         self.client_socket.close()
 
-    def request_resource(self, resource, timestamp=None):
+    def request_resource(self, resource, timestamp=None, method="GET", data=""):
         """
         Orchestrates the resource request process: handshake, request sending, and response processing.
 
@@ -219,7 +234,8 @@ class Client:
         """
         connection = self.initiate_handshake()
         if connection:
-            request = self.build_request(resource, timestamp)
+            request = self.build_request(resource, method, data, timestamp)
+            # request = self.build_request(resource, method, )
             self.send_request_segments(request)
             response = self.process_response_segments()
             print(response)

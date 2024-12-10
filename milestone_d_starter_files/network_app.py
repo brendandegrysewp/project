@@ -64,6 +64,7 @@ class NetworkApp:
 
         # Client requests a resource from the server
         self.web_client.request_resource('/index.html')
+        # self.web_client.request_resource('/new.html', method="POST", data="New Data")
         print('The web client has requested and received the resource.')
 
         time.sleep(1)  # Allow routers and client to complete processing
