@@ -3,6 +3,7 @@ import json
 from pdu import HTTPDatagram, IPHeader
 from pathlib import Path
 from datetime import datetime
+import time
 
 class Server:
     """
@@ -22,7 +23,7 @@ class Server:
         ack_num (int): Current acknowledgment number.
     """
 
-    def __init__(self, server_ip='127.128.0.1', gateway='127.128.0.254', server_port=8080, frame_size=1024, window_size=4, timeout=5):
+    def __init__(self, server_ip='127.128.0.1', gateway='127.128.0.254', server_port=8080, frame_size=200, window_size=4, timeout=5):
         """
         Initializes the server with IP address, gateway, port, and network settings.
 
@@ -110,22 +111,32 @@ class Server:
         request = ''
 
         while request[-4:] != '\r\n\r\n':  # End of HTTP request
-            frame = self.server_socket.recv(self.frame_size)
-            frame_bytes = IPHeader.from_bytes(frame)
-            if frame_bytes.ip_daddr == self.server_ip:
-                datagram_fields = HTTPDatagram.from_bytes(frame)
-                if datagram_fields.next_hop == self.server_ip and datagram_fields.flags in [24, 25]:
-                    if datagram_fields.seq_num == self.ack_num:
-                        self.ack_num += 1
-                        request += datagram_fields.data
-                    # Send acknowledgment
-                    ack = HTTPDatagram(
-                        source_ip=self.server_ip, dest_ip=datagram_fields.ip_saddr,
-                        source_port=self.server_port, dest_port=datagram_fields.source_port,
-                        seq_num=self.seq_num, ack_num=self.ack_num, flags=16,
-                        window_size=self.window_size, next_hop=self.gateway, data='ACK'
-                    )
-                    self.server_socket.sendto(ack.to_bytes(), (self.gateway, 0))
+            received = 0
+            startTime = time.time()
+            ### Check if all frames have been received and the time passed is less than the timeout
+            while received < self.window_size and time.time()-startTime < self.timeout:
+                frame = self.server_socket.recv(self.frame_size)
+                frame_bytes = IPHeader.from_bytes(frame)
+                if frame_bytes.ip_daddr == self.server_ip:
+                    datagram_fields = HTTPDatagram.from_bytes(frame)
+                    if datagram_fields.next_hop == self.server_ip and datagram_fields.flags in [24, 25]:
+                        if datagram_fields.seq_num == self.ack_num:
+                            self.ack_num += 1
+                            request += datagram_fields.data
+                            received += 1
+                            if datagram_fields.flags == 25:
+                                break
+            ### Move this so that the ACK is only sent once the time has be hit or the window size is reached
+            # Send acknowledgment
+            ack = HTTPDatagram(
+                source_ip=self.server_ip, dest_ip=datagram_fields.ip_saddr,
+                source_port=self.server_port, dest_port=datagram_fields.source_port,
+                seq_num=self.seq_num, ack_num=self.ack_num, flags=16,
+                window_size=self.window_size, next_hop=self.gateway, data='ACK'
+            )
+            received = 0
+            self.server_socket.sendto(ack.to_bytes(), (self.gateway, 0))
+            # print(self.ack_num)
 
         return request, datagram_fields.source_port, datagram_fields.ip_saddr
 
@@ -146,30 +157,49 @@ class Server:
         flags = 17  # Default flags for error response
 
         # Handle HTTP GET requests and validate requested resource
-        if method != "GET":
-            data = "HTTP/1.1 400 Bad Request\r\n\r\nInvalid Request"
-        elif resource not in self.resources:
-            data = "HTTP/1.1 404 Not Found\r\n\r\nResource Not Found"
-        else:
-            # Check for If-Modified-Since header
-            for line in request_lines[1:]:
-                if line.startswith("If-Modified-Since:"):
-                    modified_since = line.split(":", 1)[1].strip()
-                    break
+        
+        #Check for POST
+        if method == "GET":
+            if resource not in self.resources:
+                data = "HTTP/1.1 404 Not Found\r\n\r\nResource Not Found"
+            else:
+                # Check for If-Modified-Since header
+                for line in request_lines[1:]:
+                    if line.startswith("If-Modified-Since:"):
+                        modified_since = line.split(":", 1)[1].strip()
+                        break
 
-            resource_info = self.resources[resource]
-            if modified_since:
-                modified_since_time = datetime.strptime(modified_since, "%a, %d %b %Y %H:%M:%S GMT")
-                last_modified_time = datetime.strptime(resource_info['last_modified'], "%a, %d %b %Y %H:%M:%S GMT")
-                if last_modified_time <= modified_since_time:
-                    data = "HTTP/1.1 304 Not Modified\r\n\r\n"
+                resource_info = self.resources[resource]
+                if modified_since:
+                    modified_since_time = datetime.strptime(modified_since, "%a, %d %b %Y %H:%M:%S GMT")
+                    last_modified_time = datetime.strptime(resource_info['last_modified'], "%a, %d %b %Y %H:%M:%S GMT")
+                    if last_modified_time <= modified_since_time:
+                        data = "HTTP/1.1 304 Not Modified\r\n\r\n"
+                    else:
+                        data = f"HTTP/1.1 200 OK\r\nContent-Length: {len(resource_info['data'])}\r\n\r\n" + resource_info['data']
+                        flags = 24 # Set ACK and PSH flags for valid response
                 else:
                     data = f"HTTP/1.1 200 OK\r\nContent-Length: {len(resource_info['data'])}\r\n\r\n" + resource_info['data']
-                    flags = 24 # Set ACK and PSH flags for valid response
-            else:
-                data = f"HTTP/1.1 200 OK\r\nContent-Length: {len(resource_info['data'])}\r\n\r\n" + resource_info['data']
-                flags = 24  # Set ACK and PSH flags for valid response
+                    flags = 24  # Set ACK and PSH flags for valid response
         # Send the response in segments using Go-Back-N
+        #Check for post
+        elif method == "POST":
+            #Get the data
+            recvdata = {"data": "\r\n".join(request_lines[3:]), "last_modified_time": datetime.now().__str__(),
+                 "file_size": len("\r\n".join(request_lines[3:]))}
+            #Add it to the json
+            self.resources[resource] = recvdata 
+            #save the json
+            base_path = Path(__file__).parent
+            resources_path = base_path / 'newresources.json'
+            with open(resources_path, 'w') as f:
+                #self.resources = json.load(f)
+                json.dump(self.resources, f)
+            #respond with 200 OK for post
+            data = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nPOST request successfully received."
+        else:
+            #if not a POST or GET request, return 400 Bad Request
+            data = "HTTP/1.1 400 Bad Request\r\n\r\nInvalid Request"
         try:
             response_bytes = data.encode()
             max_data_length = self.frame_size - 60  # Assuming headers take 60 bytes
@@ -177,8 +207,9 @@ class Server:
         
             init_seq_num = self.seq_num
             while self.base < len(segments):
+                # print(self.base)
                 for segment in segments[self.base:min(len(segments), self.base + self.window_size)]:
-                    if self.seq_num - init_seq_num == len(segments) - 1 and flags == 24:
+                    if self.seq_num - init_seq_num == len(segments) and flags == 24:
                         flags = 25  # Set FIN flag on the last segment
                     new_datagram = HTTPDatagram(
                         source_ip=self.server_ip, dest_ip=dest_ip,
@@ -187,19 +218,24 @@ class Server:
                         window_size=self.window_size, next_hop=self.gateway, data=segment.decode()
                     )
                     self.server_socket.sendto(new_datagram.to_bytes(), (self.gateway, 0))
+                    print(segment,flags)
                     self.seq_num += 1
 
                 # Process acknowledgments
-                while self.base < len(segments):
+                startTime = time.time()
+                while time.time()-startTime:#self.base < len(segments):
                     try:
                         frame = self.server_socket.recv(self.frame_size)
                     except socket.timeout:
                         self.seq_num = self.base + init_seq_num  # Retransmit on timeout
+                        print("timeout")
                         break
 
                     datagram_fields = HTTPDatagram.from_bytes(frame)
+                    # print(datagram_fields.ack_num)
                     # Confirm frame is meant for this application and is an ACK for the oldest sent packet
-                    if (datagram_fields.next_hop == self.server_ip) and (datagram_fields.ip_saddr == dest_ip) and (datagram_fields.flags == 16) and (datagram_fields.ack_num == self.base + init_seq_num + 1):
+                    if (datagram_fields.next_hop == self.server_ip) and (datagram_fields.ip_saddr == dest_ip) and (datagram_fields.flags == 16):# and (datagram_fields.ack_num == self.base + init_seq_num + 1):
+                        # print("test")
                         # send another segment (base + window_size) if necessary
                         if self.base + self.window_size < len(segments):
                             segment = segments[self.base + self.window_size]
@@ -209,8 +245,9 @@ class Server:
                             datagram_bytes = new_datagram.to_bytes()
                             self.server_socket.sendto(datagram_bytes, (self.gateway, 0))
                             self.seq_num += 1
-                        # increment base
-                        self.base += 1
+                        ### Set base equal to ack received
+                        self.base = datagram_fields.ack_num
+                        break
                     
         except Exception as e:
             print(f'Error while sending response: {e}')
