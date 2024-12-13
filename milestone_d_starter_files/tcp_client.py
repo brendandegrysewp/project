@@ -1,13 +1,23 @@
 import socket
+import cryptography
 import random
 import time
 import threading
 from datetime import datetime
+
+import cryptography.fernet
+import cryptography.hazmat
+import cryptography.hazmat.primitives
+import cryptography.hazmat.primitives.hashes
+import cryptography.hazmat.primitives.kdf
+import cryptography.hazmat.primitives.kdf.pbkdf2
 from pdu import HTTPDatagram, IPHeader
 import webbrowser
 from pathlib import Path
+import os
 import os.path as path
 import subprocess
+import base64
 
 class Client:
     """
@@ -27,7 +37,7 @@ class Client:
         ack_num (int): Current acknowledgment number.
     """
 
-    def __init__(self, client_ip='127.0.0.1', server_ip='127.128.0.1', gateway='127.0.0.254', server_port=8080, frame_size=200, window_size=4, timeout=5):
+    def __init__(self, client_ip='127.0.0.1', server_ip='127.128.0.1', gateway='127.0.0.254', server_port=8080, frame_size=800, window_size=4, timeout=5):
         """
         Initializes the client with given IP addresses, ports, and network settings.
 
@@ -57,6 +67,11 @@ class Client:
         self.base = 0
         self.seq_num = 0
         self.ack_num = 0
+        key = open("key.txt","rb").read()
+        # print(key)
+        self.key = cryptography.fernet.Fernet(key)
+        # print(self.key.encrypt(b"bad"))
+        # exit(1)
 
     def initiate_handshake(self):
         """
@@ -141,6 +156,8 @@ class Client:
         # Sending segments using Go-Back-N protocol
         while self.base < len(segments):
             for segment in segments[self.base:min(len(segments), self.base + self.window_size)]:
+                segment = self.key.encrypt(segment)
+                # print(str(segment))
                 if self.seq_num - init_seq_num == len(segments) - 1:
                     flags = 25  # Set the FIN flag on the last segment
                 new_datagram = HTTPDatagram(
@@ -169,6 +186,7 @@ class Client:
                     # send another segment (base + window_size) if necessary
                     if self.base + self.window_size < len(segments):
                         segment = segments[self.base + self.window_size]
+                        segment = self.key.encrypt(segment)
                         if self.base == min(len(segments), self.base + self.window_size) - 1:
                             flags = 25
                         new_datagram = HTTPDatagram(source_ip=self.client_ip, dest_ip=self.server_ip, source_port=self.client_port, dest_port=self.server_port, seq_num=self.seq_num, ack_num=self.ack_num, flags=flags, window_size=self.window_size, next_hop=self.gateway, data=segment.decode())
@@ -190,6 +208,8 @@ class Client:
         received = 0
         response = ''
         flags = 24
+        tricked = False
+        firstsig = False
 
         print(self.ack_num)
         while flags not in [25, 17]:#Check for finish flags
@@ -206,14 +226,22 @@ class Client:
                             if datagram_fields.seq_num == self.ack_num:
                                 # print("check")
                                 self.ack_num += 1
-                                received += 1
                                 # print(datagram_fields.seq_num)
-                                # print(datagram_fields.data)
-                                response += datagram_fields.data
+                                # if datagram_fields.data[:6] == 'gAAAAA' and not firstsig:
+                                #     firstsig = True
+                                # elif datagram_fields.data[:6] == 'gAAAAA':
+                                #     continue
+                                received += 1
+                                print(datagram_fields.data)
+                                print()
+                                res = self.key.decrypt(datagram_fields.data).decode()
+                                # print(res)
+                                response += res
                                 flags = datagram_fields.flags
                                 # print(flags)
 
-                except Exception as e:
+                # except Exception as e:
+                except FloatingPointError as e:
                     print(f'Error while receiving response: {e}')
                     continue
             #Moved sending the ack to the outside of this loop so it only does it after a certain period of time
@@ -224,10 +252,14 @@ class Client:
                 seq_num=self.seq_num, ack_num=self.ack_num,
                 flags=16, window_size=self.window_size, next_hop=self.gateway, data='ACK'
             )
+            if not tricked and ack.ack_num > 5:#cause a retransmission
+                # ack.ack_num -= 1
+                tricked = True
             self.client_socket.sendto(ack.to_bytes(), (self.gateway, 0))
             print(self.ack_num)
             #Reset received count
             received = 0
+        # print(response.encode())
         return response
 
     def close_socket(self):
@@ -253,14 +285,18 @@ class Client:
             # request = self.build_request(resource, method, )
             self.send_request_segments(request)
             response = self.process_response_segments()
+
+            #File location
             myPath = '/home/cadet/index.html'
             file = open(myPath,"w")
+            #Save the response in the proper format
             file.write(response.replace("\\n","\n"))
             file.close()
-            # subprocess.run(["firefox", myPath],capture_output=True)
-            broswer = webbrowser.get("w3m")
-            # print(broswer.open_new("google.com"))
-            print(broswer.open_new("file://" + myPath))
+            #Text based web browser (from webbrowser docs on python.org)
+            broswer = webbrowser.get("lynx")
+            #Open the browser in the terminal
+            broswer.open_new("file://" + myPath)
+
             print(response)
         else:
             response = "Failed to connect to the server."

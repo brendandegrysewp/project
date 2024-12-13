@@ -4,6 +4,14 @@ from pdu import HTTPDatagram, IPHeader
 from pathlib import Path
 from datetime import datetime
 import time
+import cryptography
+import cryptography.fernet
+import cryptography.hazmat
+import cryptography.hazmat.primitives
+import cryptography.hazmat.primitives.hashes
+import cryptography.hazmat.primitives.kdf
+import cryptography.hazmat.primitives.kdf.pbkdf2
+import base64
 
 class Server:
     """
@@ -23,7 +31,7 @@ class Server:
         ack_num (int): Current acknowledgment number.
     """
 
-    def __init__(self, server_ip='127.128.0.1', gateway='127.128.0.254', server_port=8080, frame_size=200, window_size=4, timeout=5):
+    def __init__(self, server_ip='127.128.0.1', gateway='127.128.0.254', server_port=8080, frame_size=500, window_size=4, timeout=5):
         """
         Initializes the server with IP address, gateway, port, and network settings.
 
@@ -48,6 +56,12 @@ class Server:
         self.base = 0
         self.seq_num = 0
         self.ack_num = 0
+        key = cryptography.fernet.Fernet.generate_key()
+        self.key = cryptography.fernet.Fernet(key)
+        keyfile = open("key.txt","wb")
+        keyfile.write(key)
+        keyfile.close()
+        # print(self.key.encrypt(b'bad'))
 
         # Load server resources from a JSON file
         base_path = Path(__file__).parent
@@ -122,9 +136,12 @@ class Server:
                     if datagram_fields.next_hop == self.server_ip and datagram_fields.flags in [24, 25]:
                         if datagram_fields.seq_num == self.ack_num:
                             self.ack_num += 1
-                            request += datagram_fields.data
+                            request += self.key.decrypt(datagram_fields.data).decode()
+                            # request += datagram_fields.data
+                            print(request)
                             received += 1
                             if datagram_fields.flags == 25:
+                                print("broke")
                                 break
             ### Move this so that the ACK is only sent once the time has be hit or the window size is reached
             # Send acknowledgment
@@ -136,7 +153,7 @@ class Server:
             )
             received = 0
             self.server_socket.sendto(ack.to_bytes(), (self.gateway, 0))
-            # print(self.ack_num)
+            print(self.ack_num)
 
         return request, datagram_fields.source_port, datagram_fields.ip_saddr
 
@@ -159,6 +176,7 @@ class Server:
         # Handle HTTP GET requests and validate requested resource
         
         #Check for POST
+        print(method)
         if method == "GET":
             if resource not in self.resources:
                 data = "HTTP/1.1 404 Not Found\r\n\r\nResource Not Found"
@@ -201,24 +219,35 @@ class Server:
             #if not a POST or GET request, return 400 Bad Request
             data = "HTTP/1.1 400 Bad Request\r\n\r\nInvalid Request"
         try:
+            # data = self.key.encrypt(str(data))
             response_bytes = data.encode()
+            # response_bytes = self.key.encrypt(str(data).encode())
+            # print(response_bytes == response_bytes.decode().encode())
+            # print(response_bytes)
             max_data_length = self.frame_size - 60  # Assuming headers take 60 bytes
             segments = [response_bytes[i:i + max_data_length] for i in range(0, len(response_bytes), max_data_length)]
         
             init_seq_num = self.seq_num
             while self.base < len(segments):
                 # print(self.base)
+                count = 0
                 for segment in segments[self.base:min(len(segments), self.base + self.window_size)]:
-                    if self.seq_num - init_seq_num == len(segments) and flags == 24:
+                    # print(self.base,len(segments))
+                    # if self.seq_num - init_seq_num == len(segments) and flags == 24:
+                    if self.base+count == len(segments)-1 and flags == 24:
                         flags = 25  # Set FIN flag on the last segment
+                    count += 1                    
                     new_datagram = HTTPDatagram(
                         source_ip=self.server_ip, dest_ip=dest_ip,
                         source_port=self.server_port, dest_port=dest_port,
                         seq_num=self.seq_num, ack_num=self.ack_num, flags=flags,
-                        window_size=self.window_size, next_hop=self.gateway, data=segment.decode()
+                        window_size=self.window_size, next_hop=self.gateway, data=self.key.encrypt(segment).decode()
                     )
+                    print(new_datagram.data)
+                    # print(segment == self.key.decrypt(new_datagram.data))
+                    print()
                     self.server_socket.sendto(new_datagram.to_bytes(), (self.gateway, 0))
-                    print(segment,flags)
+                    # print(segment,flags)
                     self.seq_num += 1
 
                 # Process acknowledgments
@@ -239,6 +268,7 @@ class Server:
                         # send another segment (base + window_size) if necessary
                         if self.base + self.window_size < len(segments):
                             segment = segments[self.base + self.window_size]
+                            segment = self.key.encrypt(segment)
                             if self.base == min(len(segments), self.base + self.window_size) - 1 and flags == 24:
                                 flags = 25
                             new_datagram = HTTPDatagram(source_ip=self.server_ip, dest_ip=dest_ip, source_port=self.server_port, dest_port=dest_port, seq_num=self.seq_num, ack_num=self.ack_num, flags=flags, window_size=self.window_size, next_hop=self.gateway, data=segment.decode())
@@ -249,7 +279,7 @@ class Server:
                         self.base = datagram_fields.ack_num
                         break
                     
-        except Exception as e:
+        except FloatingPointError as e:
             print(f'Error while sending response: {e}')
 
     def reset_connection(self):
